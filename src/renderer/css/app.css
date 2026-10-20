@@ -135,7 +135,7 @@ input, select, textarea, button { font: inherit; color: inherit; }
 .method-head { --m: var(--m-head); }
 .method-options { --m: var(--m-options); }
 .method-get, .method-post, .method-put, .method-patch, .method-delete, .method-head, .method-options { color: var(--m); }
-.method-tag { color: var(--m); font: 700 10px var(--mono); min-width: 38px; text-align: right; flex: none; }
+.method-tag { color: var(--m); font: 700 11px var(--mono); min-width: 38px; text-align: right; flex: none; }
 .method-tag.method-get { color: var(--m-get); } .method-tag.method-post { color: var(--m-post); } .method-tag.method-put { color: var(--m-put); }
 .method-tag.method-patch { color: var(--m-patch); } .method-tag.method-delete { color: var(--m-delete); } .method-tag.method-head { color: var(--m-head); }
 .method-tag.method-options { color: var(--m-options); }
@@ -215,8 +215,9 @@ textarea.input { height: auto; padding: 8px; resize: vertical; font-family: var(
 #statusbar .has-errors { color: var(--err); }
 
 /* Sidebar */
-.side-nav { width: 64px; flex: none; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 6px 4px; gap: 2px; }
-.side-nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border: 0; background: none; border-radius: var(--radius); cursor: pointer; color: var(--text-2); font-size: 10px; }
+.side-nav { width: 80px; flex: none; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 6px 4px; gap: 2px; }
+.side-nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border: 0; background: none; border-radius: var(--radius); cursor: pointer; color: var(--text-2); font-size: 10px; min-width: 0; }
+.side-nav-btn span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-nav-btn .icon { width: 18px; height: 18px; }
 .side-nav-btn:hover { background: var(--bg-hover); color: var(--text); }
 .side-nav-btn.active { background: var(--bg-active); color: var(--text); }
@@ -294,7 +295,7 @@ textarea.input { height: auto; padding: 8px; resize: vertical; font-family: var(
 .url-bar { display: flex; gap: 0; padding: 0 16px 10px; align-items: stretch; }
 .method-select {
   height: 36px; border: 1px solid var(--border-strong); border-right: 0; border-radius: var(--radius) 0 0 var(--radius);
-  background: var(--bg-2); font-weight: 700; font-family: var(--mono); font-size: 12px; padding: 0 8px; cursor: pointer; width: 110px;
+  background: var(--bg-2); font-weight: 700; font-family: var(--mono); font-size: 13.2px; padding: 0 8px; cursor: pointer; width: 122px;
 }
 .method-select option { color: var(--text); }
 .url-input { flex: 1; min-width: 0; border: 1px solid var(--border-strong); border-radius: 0 var(--radius) var(--radius) 0; height: 36px; display: flex; align-items: center; background: var(--bg); }
@@ -408,11 +409,13 @@ li.CodeMirror-hint-active .hint-scope { color: #fff; }
 :root[data-theme="dark"] .cm-s-default .cm-attribute { color: #8be9fd; }
 .cm-hd-var { color: var(--var) !important; background: var(--var-bg); border-radius: 3px; }
 .cm-hd-var-missing { color: var(--var-missing) !important; background: var(--var-missing-bg); }
-.cm-line-editor { height: 34px; flex: 1; background: transparent; }
-.cm-line-editor .CodeMirror-lines { padding: 8px 0; }
-.cm-line-editor pre.CodeMirror-line, .cm-line-editor pre.CodeMirror-line-like { padding: 0 10px; }
-.cm-line-editor .CodeMirror-scroll { overflow: hidden !important; margin-bottom: 0; padding-bottom: 0; }
-.cm-line-editor .CodeMirror-hscrollbar, .cm-line-editor .CodeMirror-vscrollbar { display: none !important; }
+/* Single-line URL editor: the line is exactly as tall as the box, so there is nothing to scroll
+   vertically and the text cannot jump when the editor gains focus. */
+.cm-line-editor { height: 34px; flex: 1; min-width: 0; background: transparent; }
+.cm-line-editor .CodeMirror-lines { padding: 0; }
+.cm-line-editor pre.CodeMirror-line, .cm-line-editor pre.CodeMirror-line-like { padding: 0 10px; line-height: 34px; }
+.cm-line-editor .CodeMirror-cursor { height: 18px !important; margin-top: 8px; }
+.cm-line-editor .CodeMirror-hscrollbar, .cm-line-editor .CodeMirror-vscrollbar, .cm-line-editor .CodeMirror-scrollbar-filler { display: none !important; }
 .var-tip { position: fixed; z-index: 3000; background: var(--bg); border: 1px solid var(--border-strong); box-shadow: var(--shadow); border-radius: var(--radius); padding: 8px 10px; max-width: 320px; font-size: 12px; pointer-events: none; }
 .var-tip-name { font-family: var(--mono); font-weight: 600; margin-bottom: 4px; }
 .var-tip-value { font-family: var(--mono); word-break: break-all; margin-bottom: 4px; }
