@@ -167,6 +167,7 @@
 
   const listeners = {};
   HD.on = (evt, fn) => { (listeners[evt] = listeners[evt] || []).push(fn); };
+  HD.off = (evt, fn) => { listeners[evt] = (listeners[evt] || []).filter((f) => f !== fn); };
   HD.emit = (evt, ...args) => (listeners[evt] || []).forEach((fn) => fn(...args));
 
   // ---- History ----------------------------------------------------------------------------

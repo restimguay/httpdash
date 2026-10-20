@@ -98,6 +98,9 @@
     const [status, cfg] = await Promise.all([window.api.lock.status(), window.api.lock.getConfig()]);
     HD.lockState = status;
     HD.clear(panel);
+    panel.appendChild(h('div.security-tools',
+      HD.button('Scan for secrets', () => { document.querySelectorAll('.modal-overlay').forEach((m) => m.remove()); HD.openSecretScan(); }, { small: true, icon: 'shield' }),
+      HD.button('Audit log', () => { document.querySelectorAll('.modal-overlay').forEach((m) => m.remove()); HD.openAuditLog(); }, { small: true, icon: 'history' })));
     const rerender = () => HD.renderSecuritySettings(panel);
 
     if (status.enabled) {

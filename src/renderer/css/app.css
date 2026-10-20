@@ -670,3 +670,43 @@ body.is-locked > :not(.lock-screen):not(#toasts) { visibility: hidden; }
 .security-intro { margin-bottom: 4px; }
 .security-note { margin-top: 14px; }
 .settings-panel .field .input, .settings-panel .field .select { width: 100%; }
+
+/* Monitors */
+.side-hint { flex: 1; }
+.monitor-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--text-3); }
+.monitor-dot.ok { background: var(--ok); }
+.monitor-dot.fail { background: var(--err); }
+.monitor-dot.running { background: var(--info); animation: pulse 1s ease-in-out infinite; }
+.monitor-dot.paused { background: transparent; border: 2px solid var(--text-3); }
+.monitor-layout { display: flex; gap: 24px; padding: 0 16px 24px; align-items: flex-start; flex-wrap: wrap; }
+.monitor-config { flex: 0 1 320px; min-width: 260px; }
+.monitor-config .field .select { width: 100%; }
+.monitor-note { margin-top: 12px; }
+.monitor-results { flex: 1 1 480px; min-width: 300px; }
+.monitor-chart { display: flex; align-items: flex-end; gap: 3px; height: 70px; padding: 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); }
+.monitor-bar { flex: 1; min-width: 3px; max-width: 16px; border-radius: 2px 2px 0 0; background: var(--ok); opacity: .85; }
+.monitor-bar.fail { background: var(--err); }
+/* Mock server */
+.mock-controls { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.mock-controls .field { margin-bottom: 0; }
+.mock-lan { margin-bottom: 6px; }
+.mock-running { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 8px 12px; border-radius: var(--radius); background: var(--ok-soft); }
+.mock-panel > .muted.small { margin-top: 10px; }
+.mock-log { border: 1px solid var(--border); border-radius: var(--radius); max-height: 260px; overflow: auto; font-family: var(--mono); font-size: 12px; }
+.text-warn { color: var(--warn); }
+/* Secret scan */
+.secret-list { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.secret-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+.secret-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.secret-actions { display: flex; gap: 6px; flex: none; }
+.severity { font: 700 10px var(--mono); padding: 2px 6px; border-radius: 3px; min-width: 56px; text-align: center; flex: none; }
+.severity.high { background: var(--err-soft); color: var(--err); }
+.severity.medium { background: var(--warn-soft); color: var(--warn); }
+.severity.low { background: var(--bg-3); color: var(--text-2); }
+.security-tools { display: flex; gap: 8px; margin-bottom: 12px; }
+/* Audit log */
+.audit-filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-top: 0; }
+.audit-filters .side-search { max-width: 320px; }
+.audit-list .table-wrap { padding-top: 0; }
+.data-table tr.audit-fail td { background: var(--err-soft); }
+.nowrap { white-space: nowrap; }

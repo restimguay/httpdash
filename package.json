@@ -9,7 +9,8 @@
     "start": "electron .",
     "test": "node --test test/*.test.js",
     "dist:mac": "electron-builder --mac --publish never",
-    "dist:win": "electron-builder --win --publish never"
+    "dist:win": "electron-builder --win --publish never",
+    "cli": "node bin/httpdash.js"
   },
   "dependencies": {
     "chai": "4.5.0",
@@ -87,5 +88,8 @@
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"
     }
+  },
+  "bin": {
+    "httpdash": "bin/httpdash.js"
   }
 }

@@ -324,7 +324,37 @@
 
     const showExample = (ex) => {
       const body = h('div.example-view');
-      HD.modal({ title: `Example: ${ex.name}`, body, width: 800 });
+      const m = HD.modal({
+        title: `Example: ${ex.name}`, body, width: 800,
+        buttons: [
+          {
+            label: 'Delete example', danger: true,
+            onClick: async () => {
+              const f = HD.find(tab.refId);
+              if (!f || !(await HD.confirm('Delete example', `Delete the example "${ex.name}"?`, { danger: true, okLabel: 'Delete' }))) return false;
+              f.node.examples = (f.node.examples || []).filter((x) => x.id !== ex.id);
+              HD.save();
+              HD.renderActiveTab();
+              return true;
+            },
+          },
+          {
+            label: 'Rename',
+            onClick: async () => {
+              const n = await HD.prompt('Rename example', 'Name', ex.name);
+              if (!n) return false;
+              const f = HD.find(tab.refId);
+              const target = f && (f.node.examples || []).find((x) => x.id === ex.id);
+              if (target) target.name = n;
+              HD.save();
+              m.close();
+              HD.renderActiveTab();
+              return true;
+            },
+          },
+          { label: 'Close', primary: true },
+        ],
+      });
       const res = { status: ex.status, statusText: ex.statusText, headers: ex.headers || [], bodyText: ex.body, contentType: ((ex.headers || []).find(([k]) => /^content-type$/i.test(k)) || [])[1] || '', size: (ex.body || '').length, bodySize: (ex.body || '').length, headersSize: 0, time: 0 };
       HD.renderResponse(body, { response: res, tests: [] }, {}, { onClear: () => {} });
     };

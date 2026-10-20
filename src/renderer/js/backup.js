@@ -35,6 +35,7 @@
         option('backup', 'HttpDash backup (one file)', 'Everything: collections, environments, globals, history, service discovery sources, settings and cookies. Restore it with Import, merging into or replacing a workspace.'),
         option('postman', 'Postman format (folder of files)', 'One .postman_collection.json per collection, one .postman_environment.json per environment, plus globals. Opens in Postman and other tools. Auth dependencies and discovery sources are HttpDash-only and not included.'),
         h('div.export-counts', counts().map(([n, label]) => h('span', h('b', String(n)), ` ${label}`))),
+        h('div.muted.small', 'Not sure what secrets are in your requests? ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); document.querySelectorAll('.modal-overlay').forEach((m) => m.remove()); HD.openSecretScan(); } }, 'Run a secret scan first')),
         h('label.check', h('input', { type: 'checkbox', checked: excludeSecrets, onchange: (e) => { excludeSecrets = e.target.checked; render(); } }),
           'Leave out secrets (tokens, passwords, secret variables, cookies)'),
         excludeSecrets
