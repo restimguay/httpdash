@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   sendNoCache: true,
   userAgent: 'HttpDash/1.0',
   maxResponseBytes: 50 * 1024 * 1024,
+  largeResponseBytes: 2 * 1024 * 1024,
   historyLimit: 200,
   theme: 'system',
   fontSize: 13,

@@ -56,6 +56,10 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "electronLanguages": [
+      "en",
+      "en-US"
+    ],
     "files": [
       "src/**/*",
       "package.json",
@@ -109,7 +113,8 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "buildUniversalInstaller": false
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"
