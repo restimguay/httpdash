@@ -1,16 +1,42 @@
 {
   "name": "httpdash",
   "version": "1.0.0",
-  "description": "HttpDash - a Postman-like API client built with Electron",
+  "description": "HttpDash: a fast, local-first, Postman-compatible API client for macOS, Windows and Linux. No account, no cloud.",
+  "homepage": "https://httpdash.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/restimguay/httpdash.git"
+  },
+  "bugs": {
+    "url": "https://github.com/restimguay/httpdash/issues"
+  },
+  "keywords": [
+    "api-client",
+    "http-client",
+    "rest",
+    "graphql",
+    "postman-alternative",
+    "api-testing",
+    "electron",
+    "desktop",
+    "local-first",
+    "cli"
+  ],
   "main": "src/main/main.js",
-  "author": "restimguay",
+  "desktopName": "httpdash.desktop",
+  "author": {
+    "name": "restimguay",
+    "email": "restimguay@users.noreply.github.com",
+    "url": "https://github.com/restimguay"
+  },
   "license": "MIT",
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
     "dist:mac": "electron-builder --mac --publish never",
     "dist:win": "electron-builder --win --publish never",
-    "cli": "node bin/httpdash.js"
+    "cli": "node bin/httpdash.js",
+    "dist:linux": "electron-builder --linux --publish never"
   },
   "dependencies": {
     "chai": "4.5.0",
@@ -87,6 +113,33 @@
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Development",
+      "synopsis": "Local-first, Postman-compatible API client",
+      "maintainer": "restimguay <restimguay@users.noreply.github.com>",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
+      "syncDesktopName": true
+    },
+    "deb": {
+      "artifactName": "${name}_${version}_${arch}.${ext}"
     }
   },
   "bin": {

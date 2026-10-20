@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest something HttpDash should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or problem, not the solution. "I need to test an API that uses OAuth 2.0 with PKCE" is more useful than "add a PKCE checkbox".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could HttpDash help?
+      description: Your idea for how it could work. Screenshots of how another tool does it are welcome.
+  - type: dropdown
+    id: switching
+    attributes:
+      label: Is this stopping you from using HttpDash?
+      options: ["Yes, I can't switch without it", "No, but it would help", "Not sure"]
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to work on this myself

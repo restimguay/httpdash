@@ -1,6 +1,14 @@
 # HttpDash
 
-A Postman-style API client for the desktop, built with Electron and plain JavaScript (no build step).
+[![Build](https://github.com/restimguay/httpdash/actions/workflows/build.yml/badge.svg)](https://github.com/restimguay/httpdash/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/restimguay/httpdash)](https://github.com/restimguay/httpdash/releases/latest)
+
+**A free, open-source API client that runs your Postman collections and scripts, keeps everything on your machine, and logs in for you.** No account, no cloud. For macOS, Windows and Linux.
+
+Website: [httpdash.com](https://httpdash.com) · [Download](https://github.com/restimguay/httpdash/releases/latest) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
+
+Built with Electron and plain JavaScript (no build step).
 
 ![Request with spoofed Referer, Origin and User-Agent headers](docs/screenshots/01-referrer-spoofing.png)
 
@@ -15,7 +23,7 @@ Run the engine's unit tests (HTTP client, auth, scripts, runner, importers, code
 
 Data is stored as JSON in Electron's `userData` folder (Settings → Data shows the path). Set `HTTPDASH_DATA_DIR` to use a different folder.
 
-## Download / build for macOS and Windows
+## Download / build for macOS, Windows and Linux
 
 Every push and pull request runs the GitHub Actions workflow in `.github/workflows/build.yml`, which tests the app and then builds:
 
@@ -23,10 +31,13 @@ Every push and pull request runs the GitHub Actions workflow in `.github/workflo
 | --- | --- |
 | macOS (Intel and Apple Silicon) | `HttpDash-<version>-mac-x64.dmg`, `…-mac-arm64.dmg`, plus `.zip` versions |
 | Windows (x64 and ARM64) | `HttpDash-Setup-<version>-x64.exe` / `-arm64.exe` installers, and a no-install `HttpDash-<version>-portable.exe` |
+| Linux (x64 and ARM64) | `HttpDash-<version>-linux-x86_64.AppImage` / `-arm64.AppImage` for any distribution, and `httpdash_<version>_amd64.deb` / `_arm64.deb` for Debian and Ubuntu |
 
 Download them from the workflow run's **Artifacts**. Pushing a tag such as `v1.0.0` also attaches them to a GitHub Release.
 
-To build locally, run `npm run dist:mac` on a Mac or `npm run dist:win` on Windows. Output goes to `dist/`.
+To build locally, run `npm run dist:mac` on a Mac, `npm run dist:win` on Windows, or `npm run dist:linux` on Linux or a Mac. Output goes to `dist/`.
+
+**Updates.** **Help → Check for Updates…** asks GitHub whether a newer release exists and links to it. HttpDash never checks on its own.
 
 **Code signing.** Without certificates, the Mac build is ad-hoc signed and the Windows build is unsigned:
 - **macOS:** the first launch is blocked by Gatekeeper. Right-click the app and choose **Open**, or run `xattr -cr /Applications/HttpDash.app`.
@@ -288,13 +299,13 @@ Scripts run in Node's `vm` module in the main process. That is not a security bo
 
 ## Website
 
-The marketing site for httpdash.com lives in `website/`: plain HTML, CSS and a little JavaScript, with no build step. `.github/workflows/pages.yml` deploys it to GitHub Pages whenever `website/` changes on `main`. To serve it from httpdash.com:
+The site for httpdash.com lives in `website/`: plain HTML, CSS and a little JavaScript, with no build step. The download buttons link to the latest GitHub release.
 
-1. In the repository's **Settings → Pages**, set **Source** to **GitHub Actions**, and enter `httpdash.com` as the custom domain.
-2. At your DNS provider, point `httpdash.com` at GitHub Pages: `A` records to `185.199.108.153`, `185.199.109.153`, `185.199.110.153` and `185.199.111.153`, plus a `CNAME` for `www` to `restimguay.github.io`.
-3. Once the certificate is issued, tick **Enforce HTTPS**.
+`.github/workflows/website.yml` uploads it to the web host over SSH whenever `website/` changes on `main`. It needs the `DEPLOY_*` repository secrets listed at the top of that file; until they are set, the job is skipped. To publish by hand instead:
 
-The download buttons link to the latest GitHub release.
+```bash
+rsync -rlvz --delete --exclude .well-known --exclude .htaccess website/ <user>@<host>:<web-root>/
+```
 
 ## Layout
 
@@ -309,7 +320,16 @@ src/core/      request engine (no Electron dependency, unit-tested)
   codegen.js      code snippet generators
   repo-format.js  team repository file format
   gitsync.js      team sync through git
+  update.js       version comparison for Help → Check for Updates
 src/main/      Electron main process, IPC, persistence, preload bridge
 src/renderer/  UI (plain JS + CodeMirror 5)
 test/          node:test unit tests against a local echo server
 ```
+
+## Contributing
+
+Bug reports, fixes and features are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to set up, where things live and how to send a pull request. If a Postman collection behaves differently in HttpDash, please [open an issue](https://github.com/restimguay/httpdash/issues/new/choose) with it. Report security problems privately, as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE)

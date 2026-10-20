@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, safeStorage, net } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { JsonStore } = require('./store');
@@ -15,6 +15,7 @@ const discovery = require('../core/discovery');
 const backup = require('../core/backup');
 const { resolve: resolveVars } = require('../core/variables');
 const httpClient = require('../core/http-client');
+const update = require('../core/update');
 const { seedWorkspace } = require('./seed');
 
 const dataDir = process.env.HTTPDASH_DATA_DIR || app.getPath('userData');
@@ -140,8 +141,48 @@ function buildMenu() {
       ],
     },
     { role: 'windowMenu' },
+    {
+      role: 'help',
+      submenu: [
+        { label: 'Check for Updates…', click: () => checkForUpdates() },
+        { label: 'Release Notes', click: () => shell.openExternal('https://github.com/restimguay/httpdash/releases') },
+        { type: 'separator' },
+        { label: 'Documentation', click: () => shell.openExternal('https://github.com/restimguay/httpdash#readme') },
+        { label: 'Report an Issue', click: () => shell.openExternal('https://github.com/restimguay/httpdash/issues/new/choose') },
+        { label: 'HttpDash Website', click: () => shell.openExternal('https://httpdash.com') },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+// Asks GitHub for the latest release and tells the user whether it is newer than this build.
+async function checkForUpdates() {
+  const parent = win && !win.isDestroyed() ? win : undefined;
+  const current = app.getVersion();
+  let result;
+  try {
+    const res = await net.fetch(update.RELEASES_API, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': `HttpDash/${current}` } });
+    if (!res.ok) throw new Error(`GitHub answered ${res.status}`);
+    result = update.checkRelease(await res.json(), current);
+  } catch (err) {
+    const { response } = await dialog.showMessageBox(parent, {
+      type: 'warning', buttons: ['Open Releases Page', 'Close'], defaultId: 1,
+      message: 'Couldn’t check for updates', detail: `${err.message}\n\nYou can check the releases page instead.`,
+    });
+    if (response === 0) shell.openExternal(update.RELEASES_PAGE);
+    return;
+  }
+  if (!result.available) {
+    await dialog.showMessageBox(parent, { type: 'info', buttons: ['OK'], message: 'HttpDash is up to date', detail: `You have version ${current}.` });
+    return;
+  }
+  const { response } = await dialog.showMessageBox(parent, {
+    type: 'info', buttons: ['Download', 'Later'], defaultId: 0, cancelId: 1,
+    message: `HttpDash ${result.latest} is available`,
+    detail: `You have version ${current}. Download the new version from GitHub; your collections, environments and settings carry over.`,
+  });
+  if (response === 0) shell.openExternal(result.url);
 }
 
 // ---- IPC ----------------------------------------------------------------------------------

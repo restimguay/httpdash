@@ -4,10 +4,12 @@
 (() => {
   const ua = navigator.userAgent || '';
   const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
-  const os = /Win/i.test(platform) || /Windows/i.test(ua) ? 'windows' : /Mac/i.test(platform) || /Mac OS X/i.test(ua) ? 'mac' : null;
+  const os = /Win/i.test(platform) || /Windows/i.test(ua) ? 'windows'
+    : /Mac/i.test(platform) || /Mac OS X/i.test(ua) ? 'mac'
+    : /Linux/i.test(platform) && !/Android/i.test(ua) ? 'linux' : null;
   const primary = document.getElementById('primary-download');
   if (os && primary) {
-    primary.textContent = os === 'windows' ? 'Download for Windows' : 'Download for macOS';
+    primary.textContent = `Download for ${{ windows: 'Windows', mac: 'macOS', linux: 'Linux' }[os]}`;
     const card = document.querySelector(`.dl-card[data-os="${os}"]`);
     if (card) card.classList.add('suggested');
   }

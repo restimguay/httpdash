@@ -1,0 +1,67 @@
+name: Website
+
+# Deploys website/ to httpdash.com on the web host over SSH (rsync).
+# Needs these repository secrets; until they are set, the job is skipped:
+#   DEPLOY_SSH_KEY       private key with no passphrase, authorized in cPanel → SSH Access
+#   DEPLOY_HOST          server address
+#   DEPLOY_PORT          SSH port
+#   DEPLOY_USER          cPanel username
+#   DEPLOY_PATH          folder to publish to, relative to the home directory (e.g. httpdash.com)
+#   DEPLOY_KNOWN_HOSTS   the server's host key line, from: ssh-keyscan -p <port> <host>
+
+on:
+  push:
+    branches: [main]
+    paths: ['website/**', '.github/workflows/website.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: website
+      url: https://httpdash.com
+    env:
+      HAS_KEY: ${{ secrets.DEPLOY_SSH_KEY != '' }}
+    steps:
+      - name: Skip when deploy secrets are missing
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::DEPLOY_SSH_KEY is not set, so the website was not deployed."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+
+      - name: Set up SSH
+        if: env.HAS_KEY == 'true'
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Upload
+        if: env.HAS_KEY == 'true'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEST: ${{ secrets.DEPLOY_PATH }}
+        # --delete removes files that were deleted from website/, but leaves the host's own files alone.
+        run: |
+          rsync -rlvz --delete --chmod=D755,F644 \
+            --exclude .well-known --exclude .htaccess --exclude cgi-bin \
+            -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
+            website/ "$USER@$HOST:$DEST/"
+
+      - name: Check the site answers
+        if: env.HAS_KEY == 'true'
+        run: curl -fsS -o /dev/null -w "httpdash.com answered %{http_code}\n" https://httpdash.com/

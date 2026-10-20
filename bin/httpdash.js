@@ -40,6 +40,7 @@ Options:
       --reporter-json-export <file>   Where to write the JSON report (default: httpdash-report.json)
       --reporter-junit-export <file>  Where to write the JUnit XML report (default: httpdash-junit.xml)
       --no-color                Plain output
+  -v, --version                 Show the version
   -h, --help                    Show this help
 `;
 
@@ -75,6 +76,7 @@ function parseArgs(argv) {
       case '--reporter-junit-export': opts.junitOut = val(); break;
       case '--no-color': opts.color = false; break;
       case '-h': case '--help': opts.help = true; break;
+      case '-v': case '--version': opts.version = true; break;
       default:
         if (a.startsWith('-')) throw usage(`Unknown option ${a}`);
         pos.push(a);
@@ -170,6 +172,7 @@ async function main(argv, io = { out: (s) => process.stdout.write(`${s}\n`), err
     io.err(e.message);
     return e.exitCode || 2;
   }
+  if (opts.version) { io.out(require('../package.json').version); return 0; }
   if (opts.help || !opts.command) { io.out(HELP); return opts.help ? 0 : 2; }
   const p = paint(opts.color && process.stdout.isTTY !== false);
   try {
