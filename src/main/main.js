@@ -1,7 +1,8 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, safeStorage, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, safeStorage, session, net } = require('electron');
 const fs = require('fs');
+const http = require('http');
 const path = require('path');
 const { JsonStore } = require('./store');
 const { execute, prepare } = require('../core/executor');
@@ -493,39 +494,144 @@ handle('cookies:upsert', (cookie) => {
   return jar;
 });
 
-// OAuth 2.0 token retrieval (client credentials and password grants).
-handle('oauth2:getToken', async ({ config, scopes, settings }) => {
-  const { resolve } = require('../core/variables');
+// ---- OAuth 2.0 -------------------------------------------------------------------------------
+// Sign-in grants open the provider's page in an HttpDash window and catch the redirect to the
+// callback URL, so any registered callback works. With "use browser", the system browser signs in
+// instead and the callback must be a port on this computer, where HttpDash listens (RFC 8252).
+
+const oauth2 = require('../core/oauth2');
+const OAUTH_PARTITION = 'persist:oauth2';
+const OAUTH_BROWSER_TIMEOUT_MS = 5 * 60 * 1000;
+let cancelSignIn = null;
+
+const oauthConfig = (config, scopes) => {
   const vars = mergeScopes(scopes || {});
-  const r = (v) => resolve(v || '', vars);
-  const form = new URLSearchParams();
-  form.set('grant_type', config.grantType || 'client_credentials');
-  if (config.scope) form.set('scope', r(config.scope));
-  if (config.grantType === 'password') {
-    form.set('username', r(config.username));
-    form.set('password', r(config.password));
+  const out = { ...config };
+  for (const k of ['authUrl', 'accessTokenUrl', 'callbackUrl', 'clientId', 'clientSecret', 'scope', 'audience', 'username', 'password', 'refreshToken']) {
+    out[k] = resolveVars(config[k] || '', vars).trim();
   }
-  const headers = [['Content-Type', 'application/x-www-form-urlencoded'], ['Accept', 'application/json']];
-  if (config.clientAuth === 'body') {
-    form.set('client_id', r(config.clientId));
-    if (config.clientSecret) form.set('client_secret', r(config.clientSecret));
-  } else {
-    headers.push(['Authorization', 'Basic ' + Buffer.from(`${encodeURIComponent(r(config.clientId))}:${encodeURIComponent(r(config.clientSecret))}`).toString('base64')]);
-  }
-  const body = Buffer.from(form.toString());
+  return out;
+};
+
+async function oauthTokenRequest(cfg, kind, extra, settings) {
+  const req = oauth2.tokenRequest(cfg, kind, extra);
   const res = await httpClient.send({
-    method: 'POST', url: r(config.accessTokenUrl), headers, body,
+    method: 'POST', url: req.url, headers: req.headers, body: req.body,
     timeout: (settings && settings.timeout) || 30000, verifySSL: !settings || settings.verifySSL !== false, followRedirects: true,
     proxy: settings && settings.proxy,
   });
-  const text = res.body.toString('utf8');
-  let json;
-  try { json = JSON.parse(text); } catch { json = Object.fromEntries(new URLSearchParams(text)); }
-  if (res.status >= 400 || !json.access_token) {
-    throw new Error(`Token request failed (${res.status}): ${json.error_description || json.error || text.slice(0, 300)}`);
+  return oauth2.parseTokenResponse(res.status, res.body.toString('utf8'));
+}
+
+function signInWithWindow(url, callbackUrl) {
+  return new Promise((resolve, reject) => {
+    const authWin = new BrowserWindow({
+      parent: win && !win.isDestroyed() ? win : undefined,
+      width: 520, height: 720, title: 'Sign in', autoHideMenuBar: true,
+      webPreferences: { partition: OAUTH_PARTITION, sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    let done = false;
+    const finish = (err, value) => {
+      if (done) return;
+      done = true;
+      cancelSignIn = null;
+      if (!authWin.isDestroyed()) authWin.destroy();
+      if (err) reject(err); else resolve(value);
+    };
+    cancelSignIn = () => finish(new Error('Sign-in was cancelled'));
+    const check = (e, legacyUrl) => {
+      const target = (e && e.url) || legacyUrl;
+      if (!target || !oauth2.isCallback(target, callbackUrl)) return;
+      if (e && typeof e.preventDefault === 'function') e.preventDefault();
+      finish(null, target);
+    };
+    authWin.webContents.on('will-redirect', check);
+    authWin.webContents.on('will-navigate', check);
+    authWin.webContents.on('did-start-navigation', check);
+    // Providers that open a popup (for example "sign in with Google") continue in the same window.
+    authWin.webContents.setWindowOpenHandler(({ url: popup }) => {
+      if (/^https?:/.test(popup)) authWin.loadURL(popup);
+      return { action: 'deny' };
+    });
+    authWin.on('closed', () => finish(new Error('The sign-in window was closed before signing in finished')));
+    authWin.loadURL(url).catch((e) => { if (!done && !/ERR_ABORTED/.test(e.message)) finish(new Error(`Could not open the sign-in page: ${e.message}`)); });
+  });
+}
+
+function signInWithBrowser(url, callbackUrl) {
+  let cb;
+  try { cb = new URL(callbackUrl); } catch { throw new Error('Enter a valid Callback URL'); }
+  const host = cb.hostname.replace(/^\[|\]$/g, '');
+  if (cb.protocol !== 'http:' || !['127.0.0.1', 'localhost', '::1'].includes(host) || !cb.port) {
+    throw new Error('To sign in with your browser, use a callback URL on this computer with a port, such as http://127.0.0.1:8765/callback, and register it with the provider.');
   }
-  return json;
+  const page = (title, text) => `<!doctype html><meta charset="utf-8"><title>${title}</title><body style="font:15px system-ui,sans-serif;display:grid;place-items:center;height:90vh;color:#333"><div style="text-align:center"><h2>${title}</h2><p>${text}</p></div>`;
+  return new Promise((resolve, reject) => {
+    const servers = [];
+    let done = false;
+    let timer;
+    const finish = (err, value) => {
+      if (done) return;
+      done = true;
+      cancelSignIn = null;
+      clearTimeout(timer);
+      for (const s of servers) s.close();
+      if (err) reject(err); else resolve(value);
+    };
+    cancelSignIn = () => finish(new Error('Sign-in was cancelled'));
+    const onRequest = (req, res) => {
+      const full = `http://${cb.host}${req.url}`;
+      if (!oauth2.isCallback(full, callbackUrl)) { res.writeHead(404); res.end(); return; }
+      const q = new URL(full).searchParams;
+      if (!q.has('code') && !q.has('error') && !q.has('access_token')) {
+        // Implicit grant: the token is in the fragment, which browsers don't send. Pass it on as a query.
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`${page('Signing in…', 'One moment.')}<script>if (location.hash.length > 1) location.replace(location.pathname + '?' + location.hash.slice(1));</script>`);
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(q.has('error') ? page('Sign-in failed', 'Return to HttpDash for details.') : page('Signed in', 'You can close this tab and return to HttpDash.'));
+      finish(null, full);
+    };
+    const addresses = host === 'localhost' ? ['127.0.0.1', '::1'] : [host];
+    let listening = 0;
+    for (const address of addresses) {
+      const server = http.createServer(onRequest);
+      servers.push(server);
+      server.on('error', (e) => {
+        if (listening === 0 && servers.every((s) => !s.listening)) finish(new Error(`Could not listen on ${cb.host}: ${e.message}`));
+      });
+      server.listen(Number(cb.port), address, () => {
+        listening++;
+        if (listening === 1) shell.openExternal(url);
+      });
+    }
+    timer = setTimeout(() => finish(new Error('Timed out waiting for the browser to finish signing in')), OAUTH_BROWSER_TIMEOUT_MS);
+  });
+}
+
+// Gets a token with any grant. Sign-in grants return once the user has signed in.
+handle('oauth2:getToken', async ({ config, scopes, settings }) => {
+  const cfg = oauthConfig(config, scopes);
+  const grant = cfg.grantType || 'client_credentials';
+  if (!oauth2.usesBrowserRedirect(grant)) return oauthTokenRequest(cfg, grant === 'password' ? 'password' : 'client_credentials', {}, settings);
+  if (cancelSignIn) cancelSignIn(); // one sign-in at a time
+  const state = oauth2.randomState();
+  const pkce = grant === 'authorization_code_with_pkce' ? oauth2.pkcePair(cfg.pkceMethod) : null;
+  const url = oauth2.authorizationUrl(cfg, { state, pkce });
+  const callback = await (cfg.useBrowser ? signInWithBrowser(url, cfg.callbackUrl) : signInWithWindow(url, cfg.callbackUrl));
+  const result = oauth2.parseCallback(callback, { state, grantType: grant });
+  if (result.token) return result.token;
+  return oauthTokenRequest(cfg, 'code', { code: result.code, verifier: pkce && pkce.verifier }, settings);
 });
+handle('oauth2:refresh', async ({ config, scopes, settings }) => {
+  const cfg = oauthConfig(config, scopes);
+  if (!cfg.refreshToken) throw new Error('There is no refresh token. Get a new access token instead.');
+  return oauthTokenRequest(cfg, 'refresh', { refreshToken: cfg.refreshToken }, settings);
+});
+handle('oauth2:cancel', () => { if (cancelSignIn) cancelSignIn(); });
+// Signs out of every provider used in the sign-in window.
+handle('oauth2:clearSessions', () => session.fromPartition(OAUTH_PARTITION).clearStorageData());
 
 // Service discovery: query a registry and sync its services into environment values.
 handle('discovery:sync', async ({ config, values, sourceId, settings, vars, previewOnly }) => {

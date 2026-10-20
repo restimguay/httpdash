@@ -337,6 +337,10 @@ textarea.input { height: auto; padding: 8px; resize: vertical; font-family: var(
 .auth-editor { display: flex; gap: 24px; padding: 14px 16px; flex-wrap: wrap; }
 .auth-type { width: 260px; flex: none; }
 .auth-fields { flex: 1; min-width: 280px; max-width: 560px; }
+.token-status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -4px 0 12px; font-size: 12px; }
+.check-field { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; margin-bottom: 12px; font-size: 13px; cursor: pointer; }
+.check-field > .small { grid-column: 2; }
+.oauth-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Key/value table */
 .kv { padding: 0 0 8px; }

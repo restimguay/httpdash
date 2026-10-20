@@ -21,7 +21,7 @@ const PATTERNS = [
 
 const SECRET_AUTH_FIELDS = {
   basic: ['password'], bearer: ['token'], apikey: ['value'], digest: ['password'],
-  oauth2: ['accessToken', 'clientSecret', 'password'], awsv4: ['secretKey', 'sessionToken'],
+  oauth2: ['accessToken', 'refreshToken', 'clientSecret', 'password'], awsv4: ['secretKey', 'sessionToken'],
 };
 const SENSITIVE_HEADER = /^(authorization|proxy-authorization|cookie|x-api-key|api-key|apikey|x-auth-token|x-access-token|x-csrf-token|private-token|x-secret|.*-token|.*-secret|.*-key)$/i;
 const SENSITIVE_NAME = /pass(word|wd)?|secret|token|api[-_]?key|apikey|credential|private[-_]?key|auth/i;

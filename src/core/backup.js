@@ -16,7 +16,7 @@ const SECRET_AUTH_FIELDS = {
   bearer: ['token'],
   apikey: ['value'],
   digest: ['password'],
-  oauth2: ['accessToken', 'clientSecret', 'password'],
+  oauth2: ['accessToken', 'refreshToken', 'clientSecret', 'password'],
   awsv4: ['secretKey', 'sessionToken'],
 };
 
