@@ -4,6 +4,13 @@ Notable changes to HttpDash. The format follows [Keep a Changelog](https://keepa
 
 ## [Unreleased]
 
+### Security
+- Scripts now run in a real sandbox: QuickJS, a separate JavaScript engine compiled to WebAssembly, with a fresh engine per script and limits on time (30 s), memory (256 MB) and stack depth. Scripts can no longer reach Node, files or other processes, which matters most for collections that arrive through team sync. Previously they ran in Node's `vm` module, which a script could escape.
+
+### Added
+- Scripts can use `Buffer`, `TextEncoder` / `TextDecoder`, `URL.canParse`, SHA-224 and SHA-384, `CryptoJS.enc.Base64url`, and `require('buffer')`.
+- `console.log` supports format strings such as `%s` and `%d`, like Node.
+
 ## [1.0.0] - 2026-10-21
 
 First release.
