@@ -253,6 +253,16 @@ Compared with Postman, these are not implemented: WebSocket, gRPC, Socket.IO and
 
 Scripts run in Node's `vm` module in the main process. That is not a security boundary, so only run collections whose scripts you trust (Postman has the same caveat).
 
+## Website
+
+The marketing site for httpdash.com lives in `website/`: plain HTML, CSS and a little JavaScript, with no build step. `.github/workflows/pages.yml` deploys it to GitHub Pages whenever `website/` changes on `main`. To serve it from httpdash.com:
+
+1. In the repository's **Settings → Pages**, set **Source** to **GitHub Actions**, and enter `httpdash.com` as the custom domain.
+2. At your DNS provider, point `httpdash.com` at GitHub Pages: `A` records to `185.199.108.153`, `185.199.109.153`, `185.199.110.153` and `185.199.111.153`, plus a `CNAME` for `www` to `restimguay.github.io`.
+3. Once the certificate is issued, tick **Enforce HTTPS**.
+
+The download buttons link to the latest GitHub release.
+
 ## Layout
 
 ```

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HttpDash: the desktop API client that logs in for you</title>
+  <meta name="description" content="HttpDash is a desktop API client for Windows and macOS. Send requests, write tests, run collections, mock and monitor APIs. Tokens refresh themselves, environments build themselves from your service registry, and your data stays on your machine.">
+  <meta name="theme-color" content="#e8590c">
+  <link rel="canonical" href="https://httpdash.com/">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://httpdash.com/">
+  <meta property="og:title" content="HttpDash: the desktop API client that logs in for you">
+  <meta property="og:description" content="Send requests, test, mock and monitor APIs from your desktop. Tokens refresh themselves and your data stays on your machine.">
+  <meta property="og:image" content="https://httpdash.com/assets/hero.webp">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="HttpDash home"><img src="assets/logo.png" alt="" width="28" height="28"><span>HttpDash</span></a>
+      <nav aria-label="Main">
+        <ul class="nav-links">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#automation">Automation</a></li>
+          <li><a href="#security">Security</a></li>
+          <li><a href="#cli">CLI</a></li>
+        </ul>
+      </nav>
+      <a class="btn btn-primary btn-sm nav-cta" href="#download">Download</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" id="top">
+      <div class="wrap hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">Desktop API client for Windows &amp; macOS</p>
+          <h1>The API client that <span class="accent">logs in for you</span>.</h1>
+          <p class="lead">Send requests, write tests, run collections, mock and monitor APIs. HttpDash refreshes expired tokens before your request goes out, builds environments from your service registry, and keeps everything on your own machine.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" id="primary-download" href="#download">Download HttpDash</a>
+            <a class="btn btn-ghost btn-lg" href="#features">See what it does</a>
+          </div>
+          <p class="hero-note" id="platform-note">Windows 10/11 and macOS (Apple Silicon &amp; Intel). No account needed.</p>
+        </div>
+        <figure class="hero-shot">
+          <div class="window">
+            <div class="window-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+            <img src="assets/hero.webp" width="1140" height="538" alt="HttpDash sending a request. A banner reads: Ran Get access token first (token missing), 200 OK, saved token.">
+          </div>
+          <figcaption>The login ran on its own because the token was missing, then the request went through.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Highlights -->
+    <section class="section" id="features">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="eyebrow">Built for real APIs</p>
+          <h2>Less setup. Fewer 401s. No copy-pasting tokens.</h2>
+        </header>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>Tokens that refresh themselves</h3>
+            <p>Point a collection at its login request once. Before every call, HttpDash checks the token: if it's missing or about to expire, it runs the login first, saves the new token, and sends your request. If a server still answers 401, it refreshes and retries.</p>
+            <ul class="ticks">
+              <li>Reads the token from any JSON path, such as <code>data.jwToken</code></li>
+              <li>Knows when a JWT expires, or uses <code>expires_in</code></li>
+              <li>Works the same in the runner, monitors and the CLI</li>
+            </ul>
+          </div>
+          <figure class="feature-shot"><img src="assets/auth-dependency.webp" width="1440" height="873" loading="lazy" alt="Auth dependency settings: run Get access token first when the token is missing or expired, save the token from data.access_token."></figure>
+        </article>
+
+        <article class="feature reverse">
+          <div class="feature-copy">
+            <h3>Environments from your service registry</h3>
+            <p>Connect Consul, Eureka, Kubernetes or your own JSON endpoint, and HttpDash creates an environment with one variable per service, like <code>{{orders_url}}</code>. Re-sync whenever services move: addresses update, new services appear, and the variables you added yourself stay put.</p>
+            <ul class="ticks">
+              <li>Preview before anything changes</li>
+              <li>Healthy instances only, with tag and namespace filters</li>
+              <li>Optional sync every time the app starts</li>
+            </ul>
+          </div>
+          <figure class="feature-shot"><img src="assets/discovery.webp" width="1440" height="873" loading="lazy" alt="Service discovery preview listing four services from Consul with their variables and URLs."></figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>Send exactly what you mean</h3>
+            <p>Requests leave from a native HTTP client, not a browser, so every header goes out as typed, including <code>Referer</code>, <code>Origin</code>, <code>User-Agent</code>, <code>Host</code> and <code>Cookie</code>. The timeline shows the exact request that was sent and how long each step took.</p>
+            <ul class="ticks">
+              <li>JSON, XML, form-data with files, URL-encoded, binary and GraphQL bodies</li>
+              <li>Basic, Bearer, API key, Digest, OAuth 2.0 and AWS Signature auth</li>
+              <li>Paste a cURL command into the URL bar to import it</li>
+            </ul>
+          </div>
+          <figure class="feature-shot"><img src="assets/dark.webp" width="1440" height="873" loading="lazy" alt="HttpDash in dark mode showing an environment with masked secret values."></figure>
+        </article>
+      </div>
+    </section>
+
+    <!-- Everything else -->
+    <section class="section section-alt">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="eyebrow">Everything in one app</p>
+          <h2>From the first request to the nightly check</h2>
+        </header>
+        <ul class="grid">
+          <li class="card"><span class="card-icon" aria-hidden="true">{ }</span><h3>Collections &amp; environments</h3><p>Folders, tabs, history, globals and secret variables with <code>{{autocomplete}}</code> and hover previews.</p></li>
+          <li class="card"><span class="card-icon" aria-hidden="true">✓</span><h3>Scripts &amp; tests</h3><p>Pre-request and test scripts with a familiar <code>pm</code> API, Chai assertions, JSON Schema checks and a snippet library.</p></li>
+          <li class="card"><span class="card-icon" aria-hidden="true">▶</span><h3>Collection runner</h3><p>Iterations, CSV/JSON data files, request ordering, delays and a detailed, exportable report.</p></li>
+          <li class="card"><span class="card-icon" aria-hidden="true">≈</span><h3>Mock server</h3><p>Serve saved examples on a local port, pick responses with a header, and switch an environment to the mock in one click.</p></li>
+          <li class="card"><span class="card-icon" aria-hidden="true">♥</span><h3>Monitors</h3><p>Run a collection every few minutes and get a desktop notification when it fails, and again when it recovers.</p></li>
+          <li class="card"><span class="card-icon" aria-hidden="true">&lt;/&gt;</span><h3>Code generation</h3><p>Turn any request into cURL, fetch, Axios, Python, Go, PHP, C#, Java, PowerShell, wget or raw HTTP.</p></li>
+          <li class="card"><span class="card-icon" aria-hidden="true">⇅</span><h3>Import &amp; export</h3><p>Bring in Postman collections, OpenAPI 3, Swagger 2 and cURL. Export everything as a backup, or as portable collection files.</p></li>
+          <li class="card"><span class="card-icon" aria-hidden="true">◐</span><h3>Comfortable to live in</h3><p>Light and dark themes, side-by-side or stacked layout, keyboard shortcuts, cookie manager and proxy support.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Automation -->
+    <section class="section" id="automation">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="eyebrow">Automation</p>
+          <h2>Know when an API breaks before your users do</h2>
+        </header>
+        <div class="duo">
+          <figure class="duo-shot"><img src="assets/monitor.webp" width="1440" height="873" loading="lazy" alt="A monitor with 80% success over 5 runs, a duration chart and the failed test highlighted."><figcaption><strong>Monitors</strong> keep a history of every run with the exact test that failed.</figcaption></figure>
+          <figure class="duo-shot"><img src="assets/mock.webp" width="1440" height="873" loading="lazy" alt="Mock server running on port 3999 with its routes and recent requests."><figcaption><strong>Mock servers</strong> stand in for an API that's down or not built yet.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLI -->
+    <section class="section section-dark" id="cli">
+      <div class="wrap cli">
+        <div class="cli-copy">
+          <p class="eyebrow">Command line</p>
+          <h2>Run the same collections in CI</h2>
+          <p>Export your workspace without secrets, commit it, and run it anywhere Node.js runs. Pass credentials as variables, get JUnit reports your pipeline already understands, and fail the build when a test fails.</p>
+          <ul class="ticks ticks-light">
+            <li>Auth dependencies and scripts behave exactly as in the app</li>
+            <li>CLI, JSON and JUnit reports</li>
+            <li>Exit code 1 on any failed test or request</li>
+          </ul>
+        </div>
+        <div class="terminal" role="region" aria-label="Example terminal session">
+          <div class="terminal-bar"><span></span><span></span><span></span><button class="copy" type="button" data-copy="npm install -g github:restimguay/httpdash">Copy install</button></div>
+<pre><code><span class="t-dim">$</span> npm install -g github:restimguay/httpdash
+<span class="t-dim">$</span> httpdash run backup.json -e "QA" --env-var password=$PASS -r cli,junit
+
+HttpDash  Orders API  (environment: QA)
+
+<span class="t-cyan">→</span> List orders
+  GET https://qa.example.com/orders <span class="t-dim">[200 OK, 8.6KB, 91ms]</span>
+  <span class="t-dim">↳ ran "Get access token" first (expired) 200</span>
+  <span class="t-green">✓</span> Status is 200
+  <span class="t-green">✓</span> Returns a list of orders
+
+Total time 412 ms. <span class="t-green">PASSED</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Security -->
+    <section class="section" id="security">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="eyebrow">Security &amp; privacy</p>
+          <h2>Your requests, your machine, your rules</h2>
+          <p class="section-lead">HttpDash has no account and no cloud sync. Collections, environments and history live in a folder on your computer.</p>
+        </header>
+        <div class="security">
+          <figure class="security-shot"><img src="assets/lock.webp" width="600" height="470" loading="lazy" alt="The HttpDash lock screen asking for an LDAP username and password."></figure>
+          <ul class="security-list">
+            <li><h3>Lock it with your directory</h3><p>Require an LDAP sign-in to open the app, limit it to certain users or a group, and lock it after a period of inactivity. While locked, the app shows no data at all.</p></li>
+            <li><h3>Find secrets before they leak</h3><p>The secret scan spots keys, tokens and passwords typed straight into requests and moves them into masked variables with one click.</p></li>
+            <li><h3>Share without credentials</h3><p>Exports can leave out every secret, token and password, while keeping <code>{{variable}}</code> references intact.</p></li>
+            <li><h3>A record of what happened</h3><p>A local audit log notes sign-ins, exports, imports, runs and requests, keeping only method, host, path and status.</p></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download -->
+    <section class="section section-alt" id="download">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="eyebrow">Download</p>
+          <h2>Get HttpDash</h2>
+          <p class="section-lead">Pick your platform. Your collections, environments and settings carry over when you update.</p>
+        </header>
+        <div class="downloads">
+          <div class="dl-card" data-os="windows">
+            <h3>Windows</h3>
+            <p>Windows 10 and 11, x64 and ARM64. Installer or portable app.</p>
+            <a class="btn btn-primary" href="https://github.com/restimguay/httpdash/releases/latest">Download for Windows</a>
+            <p class="dl-hint">Not signed yet: if SmartScreen appears, choose <em>More info → Run anyway</em>.</p>
+          </div>
+          <div class="dl-card" data-os="mac">
+            <h3>macOS</h3>
+            <p>Apple Silicon and Intel. Disk image or zip.</p>
+            <a class="btn btn-primary" href="https://github.com/restimguay/httpdash/releases/latest">Download for macOS</a>
+            <p class="dl-hint">Not notarized yet: the first time, right-click the app and choose <em>Open</em>.</p>
+          </div>
+          <div class="dl-card" data-os="cli">
+            <h3>Command line</h3>
+            <p>For CI servers and schedulers. Needs Node.js 22 or later.</p>
+            <div class="code-line"><code>npm install -g github:restimguay/httpdash</code><button class="copy" type="button" data-copy="npm install -g github:restimguay/httpdash" aria-label="Copy install command">Copy</button></div>
+            <p class="dl-hint">Then run <code>httpdash run --help</code>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <a class="brand" href="#top"><img src="assets/logo.png" alt="" width="22" height="22"><span>HttpDash</span></a>
+      <nav aria-label="Footer">
+        <a href="https://github.com/restimguay/httpdash">GitHub</a>
+        <a href="https://github.com/restimguay/httpdash/releases">Releases</a>
+        <a href="https://github.com/restimguay/httpdash#readme">Documentation</a>
+      </nav>
+      <p class="footer-copy">© <span id="year">2026</span> HttpDash</p>
+    </div>
+  </footer>
+
+  <script src="site.js" defer></script>
+</body>
+</html>
