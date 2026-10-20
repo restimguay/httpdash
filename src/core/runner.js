@@ -1,6 +1,7 @@
 'use strict';
 
 const { execute } = require('./executor');
+const { makeLookup } = require('./dependency');
 
 // Flattens a collection (or one folder of it) into an ordered list of { item, chain }.
 function flatten(collection, folderId) {
@@ -66,7 +67,10 @@ function parseDataFile(content, filename = '') {
  * Returns a summary; scopes are updated in place so the caller can persist them.
  */
 async function run(opts) {
-  const list = flatten(opts.collection, opts.folderId);
+  const excluded = new Set(opts.excluded || []);
+  const list = flatten(opts.collection, opts.folderId).filter((x) => !excluded.has(x.item.id));
+  // Dependencies are looked up in the whole collection, so an excluded login request still works.
+  const lookup = makeLookup(opts.collection);
   const data = opts.data && opts.data.length ? opts.data : null;
   const iterations = Math.max(1, opts.iterations || (data ? data.length : 1));
   const emit = opts.onEvent || (() => {});
@@ -93,6 +97,7 @@ async function run(opts) {
         chain,
         scopes: { ...scopes, data: dataRow },
         jar: opts.jar,
+        lookup,
         settings: opts.settings,
         info: { requestName: item.name, requestId: item.id, iteration: it, iterationCount: iterations },
         log: (level, message) => emit({ type: 'console', level, message, name: item.name }),
@@ -123,6 +128,7 @@ async function run(opts) {
         error: res.error || null,
         skipped: !!res.skipped,
         tests: res.tests,
+        dependencyRuns: res.dependencyRuns || [],
         response: res.response ? { headers: res.response.headers, bodyText: truncate(res.response.bodyText) } : null,
         sentRequest: res.sentRequest,
       };

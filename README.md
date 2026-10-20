@@ -36,6 +36,31 @@ To sign (and notarize on Mac), add these repository secrets; the workflow picks 
 - macOS: `MAC_CSC_LINK` (base64 .p12), `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
 - Windows: `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`
 
+## Auth dependencies (auto-refresh tokens)
+
+A collection, folder or request can name another request, such as **Login**, to run first when the token it needs is missing or expired. Set it up in the **Authorization** tab under **Auth dependency**:
+
+1. Set the collection's auth to **Bearer Token** with `{{token}}`.
+2. Choose **Run a request first** and pick the login request.
+3. Fill in where the token sits in the login response, for example `access_token` or `data.access_token`, and optionally the `expires_in` path.
+
+On every send, HttpDash checks `{{token}}`:
+- **Empty or expired:** it runs the login request first, saves the new token (and its expiry) in the environment, then sends your request.
+- **Still valid:** it sends your request straight away.
+
+Expiry comes from the expiry variable, which is computed from `expires_in`. If there's no expiry variable, it uses a JWT token's `exp` claim. The token is refreshed 30 seconds early by default.
+
+More details:
+- **Retry on 401:** optionally, if the server still answers 401, it refreshes the token and retries once.
+- **Inheritance:** requests and folders inherit the setting, or can override it or turn it off.
+- **No loops:** the login request never depends on itself.
+- **Collection Runner:** it logs in once and reuses the token, even if the login request is unticked in the run.
+- **Visibility:** the response shows a banner when a dependency ran, and the Timeline shows its details.
+
+Auth dependencies are saved in HttpDash's workspace. Postman's export format has no field for them, so they are not included when you export to Postman.
+
+![Auth dependency settings](docs/screenshots/10-auth-dependency-setup.png)
+
 ## Spoofing Referer, Origin, User-Agent and other headers
 
 Requests are sent from Node's HTTP stack, not a browser, so none of the browser's "forbidden header" rules apply. Whatever you put in the **Headers** tab is sent exactly as written, including:

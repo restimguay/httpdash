@@ -7,6 +7,9 @@ const crypto = require('crypto');
 // A small echo server used by the tests.
 function startServer(port = 0) {
   const nonce = crypto.randomBytes(8).toString('hex');
+  // Token issuing for auth dependency tests.
+  const issued = new Set();
+  let logins = 0;
   const server = http.createServer((req, res) => {
     const chunks = [];
     req.on('data', (c) => chunks.push(c));
@@ -42,6 +45,22 @@ function startServer(port = 0) {
           const expected = H(`${H('user:test:pass')}:${nonce}:${p.nc}:${p.cnonce}:auth:${H(`${req.method}:${p.uri}`)}`);
           return json(p.response === expected ? 200 : 403, { authenticated: p.response === expected });
         }
+        case '/login': {
+          if (url.searchParams.get('fail')) return json(401, { error: 'bad credentials' });
+          logins++;
+          const token = `tok-${logins}`;
+          issued.add(token);
+          return json(200, { data: { access_token: token, expires_in: Number(url.searchParams.get('ttl') || 3600) } });
+        }
+        case '/protected': {
+          const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+          return issued.has(token) ? json(200, { ok: true, token }) : json(401, { error: 'unauthorized' });
+        }
+        case '/revoke':
+          issued.clear();
+          return json(200, { revoked: true });
+        case '/stats':
+          return json(200, { logins });
         case '/slow':
           return setTimeout(() => json(200, { slow: true }), 500);
         default: {

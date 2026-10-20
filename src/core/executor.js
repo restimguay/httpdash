@@ -8,6 +8,7 @@ const httpClient = require('./http-client');
 const cookies = require('./cookies');
 const { resolve, mergeScopes } = require('./variables');
 const { runScript } = require('./sandbox');
+const dependency = require('./dependency');
 
 const MIME = {
   json: 'application/json', xml: 'application/xml', html: 'text/html', text: 'text/plain', javascript: 'application/javascript',
@@ -300,6 +301,38 @@ async function execute(opts) {
     event, scopes, request, jar, cookies: jar, info: opts.info || {}, sendRequest: scriptSendRequest, log,
   });
 
+  // 0. Auth dependency: run e.g. a login request first when the token is missing or expired.
+  const depCfg = dependency.effectiveDependency(request, chain);
+  result.dependencyRuns = [];
+  const runDep = (force, reasonOverride) => dependency.runDependency({
+    cfg: depCfg,
+    scopes,
+    lookup: opts.lookup,
+    selfId: (opts.info || {}).requestId,
+    depth: opts.depth || 0,
+    force,
+    reasonOverride,
+    log,
+    runRequest: (item, itemChain, depth) => execute({
+      ...opts,
+      request: item.request,
+      chain: itemChain,
+      scopes,
+      depth,
+      info: { ...(opts.info || {}), requestName: item.name, requestId: item.id },
+    }),
+  });
+  if (depCfg) {
+    const dep = await runDep(false);
+    if (dep) {
+      result.dependencyRuns.push(dep);
+      if (dep.error) {
+        result.error = `Auth dependency "${dep.name}" failed: ${dep.error}`;
+        return result;
+      }
+    }
+  }
+
   // 1. Pre-request scripts: collection -> folders -> request.
   for (const node of [...chain, request]) {
     const code = node && node.preRequestScript;
@@ -315,44 +348,63 @@ async function execute(opts) {
     }
   }
 
-  // 2. Send.
+  // 2. Send (again after refreshing the token if the server answers 401 and retryOn401 is set).
   let prepared;
-  try {
-    prepared = prepare(request, { chain, vars: mergeScopes(scopes), settings, jar });
-  } catch (e) {
-    result.error = e.message;
-    return result;
-  }
-  result.sentRequest = {
-    method: prepared.method,
-    url: prepared.url,
-    headers: prepared.headers,
-    bodyText: prepared.body ? (prepared.body.length > 1e6 ? `<${prepared.body.length} bytes>` : prepared.body.toString('utf8')) : null,
-  };
-
   let raw;
-  try {
-    const clientOpts = clientOptions(prepared, settings, jar);
-    clientOpts.signal = opts.signal;
-    raw = await httpClient.send(clientOpts, (hop, hopUrl) => cookies.storeFromResponse(jar, hop.headers, hopUrl));
-    if (raw.status === 401 && prepared.auth.type === 'digest') {
-      const challenge = raw.headers.find(([k, v]) => k.toLowerCase() === 'www-authenticate' && /^digest/i.test(v));
-      if (challenge) {
-        const a = prepared.auth.digest || {};
-        const vars = mergeScopes(scopes);
-        const finalUrl = raw.url || prepared.url;
-        clientOpts.url = finalUrl;
-        clientOpts.headers = prepared.headers.filter(([k]) => k.toLowerCase() !== 'authorization');
-        clientOpts.headers.push(['Authorization', digestHeader(challenge[1], { username: resolve(a.username || '', vars), password: resolve(a.password || '', vars) }, prepared.method, finalUrl, prepared.body)]);
-        result.sentRequest.headers = clientOpts.headers;
-        raw = await httpClient.send(clientOpts, (hop, hopUrl) => cookies.storeFromResponse(jar, hop.headers, hopUrl));
-      }
+  for (let attempt = 0; ; attempt++) {
+    try {
+      prepared = prepare(request, { chain, vars: mergeScopes(scopes), settings, jar });
+    } catch (e) {
+      result.error = e.message;
+      return result;
     }
-  } catch (e) {
-    result.error = describeNetworkError(e);
-    log('error', `${prepared.method} ${prepared.url} failed: ${result.error}`);
-    return result;
+    result.sentRequest = {
+      method: prepared.method,
+      url: prepared.url,
+      headers: prepared.headers,
+      bodyText: prepared.body ? (prepared.body.length > 1e6 ? `<${prepared.body.length} bytes>` : prepared.body.toString('utf8')) : null,
+    };
+    raw = await sendPrepared(prepared);
+    if (!raw) return result;
+    const canRetry = attempt === 0 && raw.status === 401 && depCfg && depCfg.retryOn401 && !result.dependencyRuns.length;
+    if (!canRetry) break;
+    log('net', `${prepared.method} ${prepared.url} -> 401; refreshing token`);
+    const dep = await runDep(true, '401');
+    if (!dep) break;
+    result.dependencyRuns.push(dep);
+    if (dep.error) {
+      result.error = `Auth dependency "${dep.name}" failed: ${dep.error}`;
+      return result;
+    }
   }
+
+  async function sendPrepared(prepared) {
+    let raw;
+    try {
+      const clientOpts = clientOptions(prepared, settings, jar);
+      clientOpts.signal = opts.signal;
+      raw = await httpClient.send(clientOpts, (hop, hopUrl) => cookies.storeFromResponse(jar, hop.headers, hopUrl));
+      if (raw.status === 401 && prepared.auth.type === 'digest') {
+        const challenge = raw.headers.find(([k, v]) => k.toLowerCase() === 'www-authenticate' && /^digest/i.test(v));
+        if (challenge) {
+          const a = prepared.auth.digest || {};
+          const vars = mergeScopes(scopes);
+          const finalUrl = raw.url || prepared.url;
+          clientOpts.url = finalUrl;
+          clientOpts.headers = prepared.headers.filter(([k]) => k.toLowerCase() !== 'authorization');
+          clientOpts.headers.push(['Authorization', digestHeader(challenge[1], { username: resolve(a.username || '', vars), password: resolve(a.password || '', vars) }, prepared.method, finalUrl, prepared.body)]);
+          result.sentRequest.headers = clientOpts.headers;
+          raw = await httpClient.send(clientOpts, (hop, hopUrl) => cookies.storeFromResponse(jar, hop.headers, hopUrl));
+        }
+      }
+    } catch (e) {
+      result.error = describeNetworkError(e);
+      log('error', `${prepared.method} ${prepared.url} failed: ${result.error}`);
+      return null;
+    }
+    return raw;
+  }
+
   const response = buildResponse(raw, settings.maxPreviewBytes || 20 * 1024 * 1024);
   result.response = response;
   log('net', `${prepared.method} ${prepared.url} -> ${response.status} ${response.statusText} (${response.time} ms)`);

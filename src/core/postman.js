@@ -225,8 +225,16 @@ function importAny(json) {
 // Gives every node of a native collection fresh ids so re-importing never collides.
 function reId(node) {
   const copy = JSON.parse(JSON.stringify(node));
-  const walk = (n) => { n.id = uid(); (n.items || []).forEach(walk); };
+  const ids = new Map();
+  const walk = (n) => { const id = uid(); ids.set(n.id, id); n.id = id; (n.items || []).forEach(walk); };
   walk(copy);
+  // Keep auth dependencies pointing at the re-identified requests.
+  const remap = (n) => {
+    const dep = n.type === 'request' ? n.request && n.request.dependency : n.dependency;
+    if (dep && ids.has(dep.requestId)) dep.requestId = ids.get(dep.requestId);
+    (n.items || []).forEach(remap);
+  };
+  remap(copy);
   return copy;
 }
 

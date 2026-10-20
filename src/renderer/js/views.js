@@ -60,6 +60,7 @@
           scopes: () => HD.scopesFor(found.collection),
         }));
         panel.appendChild(h('div.muted.small.panel-pad', `Requests set to "Inherit auth from parent" will use this ${kind}'s authorization.`));
+        panel.appendChild(HD.dependencyEditor(node, { kind, collection: found.collection, parents: found.parents, selfId: null, onChange: touch }));
       } else if (t === 'pre') {
         panel.appendChild(HD.scriptEditor(node, 'preRequestScript', [
           ['Set an environment variable', "pm.environment.set('variable_key', 'variable_value');"],
@@ -236,6 +237,7 @@
             r.error ? h('span.text-error.small', r.error) : h(`span.${HD.statusClass(r.status)}`, `${r.status} ${r.statusText}`),
             h('span.muted.small', HD.formatMs(r.time)),
             h('span.muted.small', HD.formatBytes(r.size))),
+          r.dependencyRuns && r.dependencyRuns.length ? h('div.runner-deps', HD.dependencyBanner(r.dependencyRuns)) : null,
           r.tests.length ? h('div.runner-tests', r.tests.map((t) => h('div.test-item.compact',
             h(`span.test-badge.${t.skipped ? 'skip' : t.passed ? 'pass' : 'fail'}`, t.skipped ? 'SKIP' : t.passed ? 'PASS' : 'FAIL'),
             h('span.test-name', t.name), t.error ? h('span.test-error', t.error) : null))) : null,
@@ -252,10 +254,6 @@
     const start = async () => {
       const c = S.ws.collections.find((x) => x.id === cfg.collectionId);
       if (!c) return;
-      // Build a pruned copy of the collection without excluded requests.
-      const pruned = HD.clone(c);
-      const prune = (items) => items.filter((it) => (it.type === 'folder' ? ((it.items = prune(it.items)), true) : !cfg.excluded[it.id]));
-      pruned.items = prune(pruned.items);
       const env = S.ws.environments.find((e) => e.id === cfg.environmentId);
       const before = { globals: HD.listToObject(S.ws.globals), environment: env ? HD.listToObject(env.values) : {}, collection: HD.listToObject(c.variables) };
       run.results = [];
@@ -266,7 +264,8 @@
       rerender();
       try {
         const summary = await window.api.runCollection({
-          collection: pruned,
+          collection: HD.clone(c),
+          excluded: Object.keys(cfg.excluded),
           folderId: cfg.folderId,
           scopes: HD.clone(before),
           iterations: cfg.iterations,

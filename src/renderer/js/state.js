@@ -80,8 +80,16 @@
   // Deep-copies a node, giving it and its descendants fresh ids.
   HD.duplicate = (node) => {
     const copy = HD.clone(node);
-    const reId = (n) => { n.id = HD.uid(); (n.items || []).forEach(reId); };
+    const ids = new Map();
+    const reId = (n) => { const id = HD.uid(); ids.set(n.id, id); n.id = id; (n.items || []).forEach(reId); };
     reId(copy);
+    // Auth dependencies that point inside the copy follow it to the copied request.
+    const remap = (n) => {
+      const dep = n.type === 'request' ? n.request.dependency : n.dependency;
+      if (dep && ids.has(dep.requestId)) dep.requestId = ids.get(dep.requestId);
+      (n.items || []).forEach(remap);
+    };
+    remap(copy);
     return copy;
   };
 

@@ -134,6 +134,8 @@
     const content = h('div.res-content');
     const strip = HD.tabStrip(tabs.filter((t) => res || t.id === 'tests' || t.id === 'timeline' || t.id === 'body'), active, (id) => { ui.resTab = id; HD.save(); HD.renderResponse(root, result, ui, opts); });
     root.appendChild(h('div.res-header', strip, res ? statusLine(res, actions) : null));
+    const banner = HD.dependencyBanner && HD.dependencyBanner(result.dependencyRuns);
+    if (banner) root.appendChild(banner);
     root.appendChild(content);
 
     if (active === 'body') {
@@ -247,6 +249,14 @@
     }
     const section = (title, lines) => h('div.timeline-section', h('div.timeline-title', title), h('pre.timeline-body', lines));
     const parts = [];
+    for (const d of result.dependencyRuns || []) {
+      parts.push(section(`Auth dependency: ${d.name} (${HD.reasonText(d.reason)})`, [
+        `${d.method || ''} ${d.url || ''}`.trim(),
+        d.status ? `→ ${d.status} ${d.statusText} (${HD.formatMs(d.time)})` : null,
+        Object.keys(d.stored || {}).length ? `Saved variables: ${Object.keys(d.stored).join(', ')}` : null,
+        d.error ? `Error: ${d.error}` : null,
+      ].filter(Boolean).join('\n')));
+    }
     if (res && res.redirects && res.redirects.length) {
       parts.push(section('Redirects', res.redirects.map((r) => `${r.status}  ${r.from}\n   → ${r.to}`).join('\n')));
     }

@@ -161,7 +161,11 @@
       HD.clear(reqPanel);
       const t = ui.reqTab || 'params';
       if (t === 'params') renderParams();
-      else if (t === 'auth') reqPanel.appendChild(HD.authEditor(req.auth, { onChange: panelChanged, inheritFrom: () => inheritedAuth(context().chain), allowInherit: true, scopes: () => HD.scopesFor(context().collection) }));
+      else if (t === 'auth') {
+        reqPanel.appendChild(HD.authEditor(req.auth, { onChange: panelChanged, inheritFrom: () => inheritedAuth(context().chain), allowInherit: true, scopes: () => HD.scopesFor(context().collection) }));
+        const c = context();
+        reqPanel.appendChild(HD.dependencyEditor(req, { kind: 'request', collection: c.collection, parents: c.found ? c.found.parents : [], selfId: tab.refId, onChange: panelChanged }));
+      }
       else if (t === 'headers') renderHeaders();
       else if (t === 'body') renderBody();
       else if (t === 'pre') reqPanel.appendChild(HD.scriptEditor(req, 'preRequestScript', SNIPPETS.pre, panelChanged, 'Pre-request scripts run before the request is sent. Collection and folder scripts run first.'));
@@ -395,7 +399,8 @@
         result = await window.api.send({
           id: tab.id,
           request: HD.clone(req),
-          chain: chain.map((n) => ({ id: n.id, name: n.name, auth: n.auth, preRequestScript: n.preRequestScript, testScript: n.testScript })),
+          chain: chain.map((n) => ({ id: n.id, name: n.name, auth: n.auth, preRequestScript: n.preRequestScript, testScript: n.testScript, dependency: n.dependency })),
+          collection: collection ? HD.clone(collection) : null,
           scopes,
           settings,
           info: { requestName: draft.name, requestId: tab.refId || tab.id },

@@ -10,6 +10,7 @@ const codegen = require('../core/codegen');
 const { parseCurl } = require('../core/curl');
 const postman = require('../core/postman');
 const runner = require('../core/runner');
+const { makeLookup } = require('../core/dependency');
 const httpClient = require('../core/http-client');
 const { seedWorkspace } = require('./seed');
 
@@ -107,13 +108,14 @@ handle('workspace:load', () => workspaceStore.load());
 handle('workspace:save', (data) => { workspaceStore.save(data); return true; });
 handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, dataDir, dark: nativeTheme.shouldUseDarkColors }));
 
-handle('request:send', async ({ id, request, chain, scopes, settings, info }) => {
+handle('request:send', async ({ id, request, chain, scopes, settings, info, collection }) => {
   const controller = new AbortController();
   inflight.set(id, controller);
   const logs = [];
   try {
     const res = await execute({
       request, chain, scopes, settings, info, jar,
+      lookup: makeLookup(collection),
       signal: controller.signal,
       log: (level, message) => logs.push({ level, message, time: Date.now() }),
     });
