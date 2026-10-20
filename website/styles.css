@@ -34,6 +34,7 @@
     color-scheme: dark;
   }
 }
+@media (prefers-color-scheme: dark) { .bench { --bar-us: #e0560c; } }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 72px; }
@@ -156,14 +157,54 @@ p { margin: 0; }
 .footer nav a:hover { color: var(--ink); }
 .footer-copy { margin-left: auto; color: var(--ink-3); font-size: 14px; }
 
+/* Performance */
+.stats { list-style: none; padding: 0; margin: 0 0 40px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.stat { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px 24px; display: flex; flex-direction: column; gap: 8px; }
+.stat-value { font-size: 52px; line-height: 1; font-weight: 750; letter-spacing: -.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat-unit { font-size: 28px; font-weight: 650; color: var(--ink-2); letter-spacing: 0; }
+.stat-label { font-size: 15px; color: var(--ink-2); }
+.bench { margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; --bar-us: #e8590c; --bar-them: #7a8190; }
+.bench figcaption h3 { font-size: 18px; margin: 0 0 4px; }
+.bench figcaption p { font-size: 15px; color: var(--ink-2); margin: 0 0 24px; }
+.bench-chart { display: grid; gap: 14px; }
+.bench-row { position: relative; display: grid; grid-template-columns: 170px minmax(0, 1fr) 80px; align-items: center; gap: 14px; border-radius: 8px; outline: none; }
+.bench-row:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); }
+.bench-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.bench-name small { font-weight: 500; color: var(--ink-3); font-size: 13px; }
+.bench-track { height: 22px; display: flex; align-items: center; }
+/* Bars start at the axis (square) and round only at the data end. Width is relative to the top value. */
+.bench-bar { display: block; height: 100%; width: calc(var(--v) / 1395 * 100%); min-width: 3px; background: var(--bar-them); border-radius: 0 4px 4px 0; }
+.bench-row.is-us .bench-bar { background: var(--bar-us); }
+.bench-value { font-size: 15px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+.bench-row.is-us .bench-name, .bench-row.is-us .bench-value { font-weight: 750; }
+.bench-tip { position: absolute; z-index: 2; left: 184px; bottom: calc(100% + 8px); display: none; flex-direction: column; gap: 2px; padding: 10px 12px; font-size: 13px; color: var(--ink-2); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); white-space: nowrap; pointer-events: none; }
+.bench-tip b { color: var(--ink); }
+.bench-row:hover .bench-tip, .bench-row:focus-visible .bench-tip { display: flex; }
+.bench-details { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 16px; font-size: 14px; color: var(--ink-2); }
+.bench-details summary { cursor: pointer; font-weight: 600; color: var(--ink); font-size: 15px; }
+.bench-details p { margin: 12px 0 0; }
+.bench-details code { font: 13px var(--mono); }
+.bench-details a { color: var(--accent-ink); }
+.table-scroll { overflow-x: auto; margin-top: 14px; }
+.bench-details table { border-collapse: collapse; width: 100%; min-width: 420px; font-variant-numeric: tabular-nums; }
+.bench-details th, .bench-details td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); font-weight: 500; }
+.bench-details thead th { color: var(--ink-3); font-size: 13px; font-weight: 600; }
+.bench-details tbody th { color: var(--ink); }
+
 /* Responsive */
 @media (max-width: 1000px) {
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero-inner, .feature, .cli, .security { grid-template-columns: minmax(0, 1fr); gap: 36px; }
   .feature.reverse .feature-copy { order: 0; }
   .downloads { grid-template-columns: minmax(0, 1fr); }
+  .stats { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 720px) {
+  .bench { padding: 20px 16px; }
+  .bench-row { grid-template-columns: 96px minmax(0, 1fr) 64px; gap: 10px; }
+  .bench-name small { display: block; }
+  .bench-tip { left: 0; }
+  .stat-value { font-size: 44px; }
   body { font-size: 16px; }
   .wrap { padding: 0 16px; }
   .nav-links { display: none; }

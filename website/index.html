@@ -25,6 +25,7 @@
       <a class="brand" href="#top" aria-label="HttpDash home"><img src="assets/logo.png" alt="" width="28" height="28"><span>HttpDash</span></a>
       <nav aria-label="Main">
         <ul class="nav-links">
+          <li><a href="#performance">Performance</a></li>
           <li><a href="#features">Features</a></li>
           <li><a href="#automation">Automation</a></li>
           <li><a href="#security">Security</a></li>
@@ -47,7 +48,7 @@
             <a class="btn btn-primary btn-lg" id="primary-download" href="#download">Download HttpDash</a>
             <a class="btn btn-ghost btn-lg" href="#features">See what it does</a>
           </div>
-          <p class="hero-note" id="platform-note">Windows, macOS and Linux. MIT licensed. No account needed.</p>
+          <p class="hero-note" id="platform-note">Opens in a third of a second. Windows, macOS and Linux. MIT licensed. No account needed.</p>
         </div>
         <figure class="hero-shot">
           <div class="window">
@@ -55,6 +56,74 @@
             <img src="assets/hero.webp" width="1140" height="538" alt="HttpDash sending a request. A banner reads: Ran Get access token first (token missing), 200 OK, saved token.">
           </div>
           <figcaption>The login ran on its own because the token was missing, then the request went through.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Performance -->
+    <section class="section section-alt" id="performance">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="eyebrow">Performance</p>
+          <h2>Fast from the first click</h2>
+          <p class="section-lead">No sign-in, no cloud sync, no waiting. Every number here was measured, and the benchmark is a script you can run yourself.</p>
+        </header>
+
+        <ul class="stats">
+          <li class="stat">
+            <span class="stat-value">0.3<span class="stat-unit"> s</span></span>
+            <span class="stat-label">from launch to a ready window, and under half a second with 6,000 requests</span>
+          </li>
+          <li class="stat">
+            <span class="stat-value">14<span class="stat-unit">×</span></span>
+            <span class="stat-label">faster than Postman's collection runner on 500 requests with scripts and tests</span>
+          </li>
+          <li class="stat">
+            <span class="stat-value">0</span>
+            <span class="stat-label">accounts, sign-ins or cloud syncs between you and your first request</span>
+          </li>
+        </ul>
+
+        <figure class="bench" aria-labelledby="bench-title">
+          <figcaption>
+            <h3 id="bench-title">Collection runner throughput</h3>
+            <p>Requests per second, running 500 requests that each have a pre-request script and two tests. Higher is better.</p>
+          </figcaption>
+          <div class="bench-chart" role="list">
+            <div class="bench-row is-us" role="listitem" tabindex="0" aria-label="HttpDash 1.0.0: 1,395 requests per second, 0.36 seconds in total, 157 MB peak memory">
+              <span class="bench-name">HttpDash</span>
+              <span class="bench-track"><span class="bench-bar" style="--v: 1395"></span></span>
+              <span class="bench-value">1,395/s</span>
+              <span class="bench-tip" role="tooltip"><b>HttpDash 1.0.0</b><span>0.36 s for 500 requests</span><span>157 MB peak memory</span></span>
+            </div>
+            <div class="bench-row" role="listitem" tabindex="0" aria-label="Postman's runner, Newman 6.2.3: 95 requests per second, 5.24 seconds in total, 272 MB peak memory">
+              <span class="bench-name">Postman <small>(Newman)</small></span>
+              <span class="bench-track"><span class="bench-bar" style="--v: 95"></span></span>
+              <span class="bench-value">95/s</span>
+              <span class="bench-tip" role="tooltip"><b>Newman 6.2.3</b><span>5.24 s for 500 requests</span><span>272 MB peak memory</span></span>
+            </div>
+            <div class="bench-row" role="listitem" tabindex="0" aria-label="Bruno CLI 4.2.1: 11 requests per second, 43.86 seconds in total, 422 MB peak memory">
+              <span class="bench-name">Bruno <small>(CLI)</small></span>
+              <span class="bench-track"><span class="bench-bar" style="--v: 11"></span></span>
+              <span class="bench-value">11/s</span>
+              <span class="bench-tip" role="tooltip"><b>Bruno CLI 4.2.1</b><span>43.86 s for 500 requests</span><span>422 MB peak memory</span></span>
+            </div>
+          </div>
+          <details class="bench-details">
+            <summary>How we measured, and all the numbers</summary>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th scope="col">Runner</th><th scope="col">Total time</th><th scope="col">Requests/s</th><th scope="col">Peak memory</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">HttpDash 1.0.0</th><td>0.36 s</td><td>1,395</td><td>157 MB</td></tr>
+                  <tr><th scope="row">Postman's Newman 6.2.3</th><td>5.24 s</td><td>95</td><td>272 MB</td></tr>
+                  <tr><th scope="row">Bruno CLI 4.2.1</th><td>43.86 s</td><td>11</td><td>422 MB</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Each runner ran the same 500 GET requests against a local JSON endpoint. Every request had a pre-request script that sets a variable, and a test script with two assertions. The figures are the median of five runs after a warm-up, with peak memory from <code>/usr/bin/time</code>. Measured in October 2026 on an Apple M5 Mac with 16 GB of memory. Start-up time is from launch to a window showing the workspace.</p>
+            <p>To reproduce it, clone the repository and run <code>npm run bench</code>. <a href="https://github.com/restimguay/httpdash/pull/12">See the benchmark script.</a></p>
+          </details>
         </figure>
       </div>
     </section>
