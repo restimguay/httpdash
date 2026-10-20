@@ -4,9 +4,9 @@ Notable changes to HttpDash. The format follows [Keep a Changelog](https://keepa
 
 ## [Unreleased]
 
-## [1.0.0] - Not released yet
+## [1.0.0] - 2026-10-21
 
-First release. Set the date here when you tag `v1.0.0`.
+First release.
 
 ### Added
 - Requests with any method, params, headers, every body type (raw, form-data with files, URL-encoded, binary, GraphQL) and cURL paste.
