@@ -7,7 +7,7 @@
   "license": "MIT",
   "httpdash": {
     "updateRepo": "restimguay/httpdash",
-    "buyMeACoffee": "https://www.buymeacoffee.com/restimguay"
+    "buyMeACoffee": "https://buymeacoffee.com/restiguayw"
   },
   "scripts": {
     "start": "electron .",

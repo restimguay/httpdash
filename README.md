@@ -95,7 +95,7 @@ The status bar (lower left) and Settings → About have a **Buy me a coffee** li
 ```json
 "httpdash": {
   "updateRepo": "restimguay/httpdash",
-  "buyMeACoffee": "https://www.buymeacoffee.com/restimguay"
+  "buyMeACoffee": "https://buymeacoffee.com/restiguayw"
 }
 ```
 
