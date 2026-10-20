@@ -31,7 +31,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1440,
     height: 900,
-    minWidth: 960,
+    minWidth: 720,
     minHeight: 600,
     title: 'HttpDash',
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e1f22' : '#ffffff',
