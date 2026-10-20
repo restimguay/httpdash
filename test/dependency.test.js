@@ -147,3 +147,22 @@ test('re-importing a native collection keeps dependencies pointing at the copied
   assert.notStrictEqual(newLogin.id, login.id);
   assert.strictEqual(data.dependency.requestId, newLogin.id);
 });
+
+test('sending the login request directly also stores its token, so the next request does not log in again', async () => {
+  const { run, login } = setup();
+  const direct = await run({}, login);
+  assert.deepStrictEqual(direct.savedVariables, ['token', 'tokenExpiresAt']);
+  const n = await logins();
+  const next = await run(direct.scopes.environment);
+  assert.strictEqual(next.response.status, 200);
+  assert.strictEqual(next.dependencyRuns.length, 0);
+  assert.strictEqual(await logins(), n);
+});
+
+test('collection runner: a login request in the run feeds the token to the requests after it', async () => {
+  const { col } = setup();
+  const n = await logins();
+  const summary = await runner.run({ collection: col, iterations: 2, scopes: { globals: {}, environment: {} }, jar: [] });
+  assert.deepStrictEqual(summary.results.map((r) => [r.name, r.status, r.dependencyRuns.length]), [['Login', 200, 0], ['Protected', 200, 0], ['Login', 200, 0], ['Protected', 200, 0]]);
+  assert.strictEqual(await logins(), n + 2);
+});

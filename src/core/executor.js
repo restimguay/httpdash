@@ -409,6 +409,21 @@ async function execute(opts) {
   result.response = response;
   log('net', `${prepared.method} ${prepared.url} -> ${response.status} ${response.statusText} (${response.time} ms)`);
 
+  // When the login request that others depend on is sent directly (or by the runner), store its
+  // token too, so the next request reuses it instead of logging in again.
+  const selfId = (opts.info || {}).requestId;
+  if (depCfg && depCfg.requestId === selfId && !opts.depth && response.status < 400) {
+    try {
+      const stored = dependency.extractToken(depCfg, response, scopes);
+      if (Object.keys(stored).length) {
+        result.savedVariables = Object.keys(stored);
+        log('info', `Saved ${result.savedVariables.map((k) => `{{${k}}}`).join(', ')} for requests that depend on "${(opts.info || {}).requestName}"`);
+      }
+    } catch (e) {
+      log('warn', `Could not save the token from this response: ${e.message}`);
+    }
+  }
+
   // 3. Test scripts: collection -> folders -> request.
   for (const node of [...chain, request]) {
     const code = node && node.testScript;
