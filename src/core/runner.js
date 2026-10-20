@@ -1,6 +1,7 @@
 'use strict';
 
 const { execute } = require('./executor');
+const { ScriptSession } = require('./sandbox');
 const { makeLookup } = require('./dependency');
 
 // Flattens a collection (or one folder of it) into an ordered list of { item, chain }.
@@ -81,74 +82,81 @@ async function run(opts) {
   };
   const summary = { iterations, requests: 0, failedRequests: 0, tests: 0, passed: 0, failed: 0, skipped: 0, totalTime: 0, results: [], stopped: false };
   const started = Date.now();
+  // Every script in the run shares one sandbox session, so its libraries load once, not per request.
+  const scriptSession = new ScriptSession();
+  try {
 
-  outer: for (let it = 0; it < iterations; it++) {
-    const dataRow = data ? data[it % data.length] : {};
-    emit({ type: 'iteration', iteration: it, dataRow });
-    let idx = 0;
-    let guard = 0;
-    while (idx < list.length) {
-      if (opts.signal && opts.signal.aborted) { summary.stopped = true; break outer; }
-      if (++guard > 10000) throw new Error('Runner exceeded 10000 steps in one iteration (setNextRequest loop?)');
-      const { item, chain } = list[idx];
-      emit({ type: 'request-start', iteration: it, id: item.id, name: item.name });
-      const res = await execute({
-        request: item.request,
-        chain,
-        scopes: { ...scopes, data: dataRow },
-        jar: opts.jar,
-        lookup,
-        settings: opts.settings,
-        info: { requestName: item.name, requestId: item.id, iteration: it, iterationCount: iterations },
-        log: (level, message) => emit({ type: 'console', level, message, name: item.name }),
-        signal: opts.signal,
-      });
-      Object.assign(scopes.globals, clearInto(scopes.globals, res.scopes.globals));
-      Object.assign(scopes.environment, clearInto(scopes.environment, res.scopes.environment));
-      Object.assign(scopes.collection, clearInto(scopes.collection, res.scopes.collection));
+    outer: for (let it = 0; it < iterations; it++) {
+      const dataRow = data ? data[it % data.length] : {};
+      emit({ type: 'iteration', iteration: it, dataRow });
+      let idx = 0;
+      let guard = 0;
+      while (idx < list.length) {
+        if (opts.signal && opts.signal.aborted) { summary.stopped = true; break outer; }
+        if (++guard > 10000) throw new Error('Runner exceeded 10000 steps in one iteration (setNextRequest loop?)');
+        const { item, chain } = list[idx];
+        emit({ type: 'request-start', iteration: it, id: item.id, name: item.name });
+        const res = await execute({
+          request: item.request,
+          chain,
+          scopes: { ...scopes, data: dataRow },
+          jar: opts.jar,
+          lookup,
+          settings: opts.settings,
+          info: { requestName: item.name, requestId: item.id, iteration: it, iterationCount: iterations },
+          log: (level, message) => emit({ type: 'console', level, message, name: item.name }),
+          signal: opts.signal,
+          scriptSession,
+        });
+        Object.assign(scopes.globals, clearInto(scopes.globals, res.scopes.globals));
+        Object.assign(scopes.environment, clearInto(scopes.environment, res.scopes.environment));
+        Object.assign(scopes.collection, clearInto(scopes.collection, res.scopes.collection));
 
-      const passed = res.tests.filter((t) => t.passed && !t.skipped).length;
-      const skipped = res.tests.filter((t) => t.skipped).length;
-      const failed = res.tests.filter((t) => !t.passed).length;
-      summary.requests++;
-      summary.tests += res.tests.length;
-      summary.passed += passed;
-      summary.failed += failed;
-      summary.skipped += skipped;
-      if (res.error) summary.failedRequests++;
-      if (res.response) summary.totalTime += res.response.time;
-      const entry = {
-        iteration: it, id: item.id, name: item.name,
-        method: res.sentRequest ? res.sentRequest.method : item.request.method,
-        url: res.sentRequest ? res.sentRequest.url : item.request.url,
-        status: res.response ? res.response.status : null,
-        statusText: res.response ? res.response.statusText : '',
-        time: res.response ? res.response.time : 0,
-        size: res.response ? res.response.size : 0,
-        error: res.error || null,
-        skipped: !!res.skipped,
-        tests: res.tests,
-        dependencyRuns: res.dependencyRuns || [],
-        response: res.response ? { headers: res.response.headers, bodyText: truncate(res.response.bodyText) } : null,
-        sentRequest: res.sentRequest,
-      };
-      summary.results.push(entry);
-      emit({ type: 'request-done', ...entry });
+        const passed = res.tests.filter((t) => t.passed && !t.skipped).length;
+        const skipped = res.tests.filter((t) => t.skipped).length;
+        const failed = res.tests.filter((t) => !t.passed).length;
+        summary.requests++;
+        summary.tests += res.tests.length;
+        summary.passed += passed;
+        summary.failed += failed;
+        summary.skipped += skipped;
+        if (res.error) summary.failedRequests++;
+        if (res.response) summary.totalTime += res.response.time;
+        const entry = {
+          iteration: it, id: item.id, name: item.name,
+          method: res.sentRequest ? res.sentRequest.method : item.request.method,
+          url: res.sentRequest ? res.sentRequest.url : item.request.url,
+          status: res.response ? res.response.status : null,
+          statusText: res.response ? res.response.statusText : '',
+          time: res.response ? res.response.time : 0,
+          size: res.response ? res.response.size : 0,
+          error: res.error || null,
+          skipped: !!res.skipped,
+          tests: res.tests,
+          dependencyRuns: res.dependencyRuns || [],
+          response: res.response ? { headers: res.response.headers, bodyText: truncate(res.response.bodyText) } : null,
+          sentRequest: res.sentRequest,
+        };
+        summary.results.push(entry);
+        emit({ type: 'request-done', ...entry });
 
-      if (opts.stopOnFailure && (failed || res.error)) { summary.stopped = true; break outer; }
+        if (opts.stopOnFailure && (failed || res.error)) { summary.stopped = true; break outer; }
 
-      if (res.nextRequest === null) break; // pm.setNextRequest(null) ends this iteration.
-      if (res.nextRequest !== undefined) {
-        const target = list.findIndex((x) => x.item.name === res.nextRequest || x.item.id === res.nextRequest);
-        if (target === -1) {
-          emit({ type: 'console', level: 'warn', message: `setNextRequest: no request named "${res.nextRequest}"; stopping iteration` });
-          break;
-        }
-        idx = target;
-      } else idx++;
+        if (res.nextRequest === null) break; // pm.setNextRequest(null) ends this iteration.
+        if (res.nextRequest !== undefined) {
+          const target = list.findIndex((x) => x.item.name === res.nextRequest || x.item.id === res.nextRequest);
+          if (target === -1) {
+            emit({ type: 'console', level: 'warn', message: `setNextRequest: no request named "${res.nextRequest}"; stopping iteration` });
+            break;
+          }
+          idx = target;
+        } else idx++;
 
-      if (opts.delay && idx < list.length) await sleep(opts.delay, opts.signal);
+        if (opts.delay && idx < list.length) await sleep(opts.delay, opts.signal);
+      }
     }
+  } finally {
+    scriptSession.dispose();
   }
   summary.duration = Date.now() - started;
   summary.scopes = scopes;

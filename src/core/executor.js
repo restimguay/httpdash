@@ -7,7 +7,7 @@ const { URL } = require('url');
 const httpClient = require('./http-client');
 const cookies = require('./cookies');
 const { resolve, mergeScopes } = require('./variables');
-const { runScript } = require('./sandbox');
+const { runScript, ScriptSession } = require('./sandbox');
 const dependency = require('./dependency');
 
 const MIME = {
@@ -270,11 +270,23 @@ function buildResponse(raw, maxPreview) {
  * Executes a request with scripts.
  * opts: {
  *   request, chain (ancestors with scripts/auth), scopes {globals, collection, environment, data},
- *   jar (cookie array, mutated), settings, info, log(level, msg), signal
+ *   jar (cookie array, mutated), settings, info, log(level, msg), signal,
+ *   scriptSession (optional: a ScriptSession shared by several requests, e.g. a collection run)
  * }
  * Returns { response, error, tests, preRequestError, testError, nextRequest, sentRequest, scopes, visualizer }
  */
 async function execute(opts) {
+  if (opts.scriptSession) return executeRequest(opts);
+  // The request's scripts, and those of any auth dependency it runs, share one script session.
+  const scriptSession = new ScriptSession();
+  try {
+    return await executeRequest({ ...opts, scriptSession });
+  } finally {
+    scriptSession.dispose();
+  }
+}
+
+async function executeRequest(opts) {
   const settings = opts.settings || {};
   const scopes = {
     globals: { ...(opts.scopes.globals || {}) },
@@ -298,7 +310,7 @@ async function execute(opts) {
   };
 
   const scriptCtx = (event) => ({
-    event, scopes, request, jar, cookies: jar, info: opts.info || {}, sendRequest: scriptSendRequest, log,
+    event, scopes, request, jar, cookies: jar, info: opts.info || {}, sendRequest: scriptSendRequest, log, session: opts.scriptSession,
   });
 
   // 0. Auth dependency: run e.g. a login request first when the token is missing or expired.

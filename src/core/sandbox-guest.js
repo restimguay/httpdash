@@ -6,9 +6,13 @@
  * HttpDash; everything it needs from outside comes through `host`, a few functions that take and
  * return plain strings and numbers. Its state goes back to the host as JSON when the script ends.
  *
+ * createSandbox runs once per session (one request, or one collection run) and holds what scripts
+ * share: the classes, CryptoJS and chai, which is the slow part to load. createScript runs once per
+ * script and builds that script's variables, tests and globals; each script gets its own context.
+ *
  * sandbox.js evaluates this file's source inside QuickJS; it is never run in Node's own context.
  */
-function createRuntime(host, input) {
+function createSandbox(host) {
   const stringify = JSON.stringify;
   const indirectEval = globalThis.eval;
 
@@ -363,23 +367,6 @@ function createRuntime(host, input) {
     return { key: item.key, value: item.value == null ? '' : String(item.value), enabled: item.disabled ? false : true };
   }
 
-  const scopes = input.scopes;
-  const mergeScopes = () => Object.assign({}, scopes.globals, scopes.collection, scopes.environment, scopes.data, scopes.local);
-  const replaceIn = (s) => host.resolve(String(s), stringify(mergeScopes()));
-
-  function makeScope(store, name) {
-    return {
-      name,
-      get: (k) => store[k],
-      set: (k, v) => { store[k] = v; },
-      unset: (k) => { delete store[k]; },
-      has: (k) => Object.prototype.hasOwnProperty.call(store, k),
-      clear: () => { for (const k of Object.keys(store)) delete store[k]; },
-      toObject: () => ({ ...store }),
-      replaceIn,
-    };
-  }
-
   function decodeSafe(s) {
     try { return decodeURIComponent(s.replace(/\+/g, ' ')); } catch { return s; }
   }
@@ -594,148 +581,173 @@ function createRuntime(host, input) {
     return errors;
   }
 
-  // ---- Assemble the script's globals --------------------------------------------------------
+  // ---- One script --------------------------------------------------------------------------
 
-  const result = { tests: [], error: null, nextRequest: undefined, visualizer: null, skipRequest: false };
-  const log = (level) => (...args) => host.log(level, format(...args));
-  const safeCallback = (fn) => {
-    try { fn(); } catch (e) {
-      result.error = result.error || (e && e.message) || String(e);
-      log('error')(e && e.stack ? `${e.message}\n${e.stack}` : String(e));
+  // Builds the globals for one script. inputJson: { event, scopes, request, response, cookies, info }.
+  function createScript(inputJson) {
+    const input = JSON.parse(inputJson);
+    ops.clear(); // calls left over from an earlier script that timed out
+
+    const scopes = input.scopes;
+    const mergeScopes = () => Object.assign({}, scopes.globals, scopes.collection, scopes.environment, scopes.data, scopes.local);
+    const replaceIn = (s) => host.resolve(String(s), stringify(mergeScopes()));
+
+    function makeScope(store, name) {
+      return {
+        name,
+        get: (k) => store[k],
+        set: (k, v) => { store[k] = v; },
+        unset: (k) => { delete store[k]; },
+        has: (k) => Object.prototype.hasOwnProperty.call(store, k),
+        clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+        toObject: () => ({ ...store }),
+        replaceIn,
+      };
     }
-  };
 
-  const environment = makeScope(scopes.environment, 'environment');
-  const globals = makeScope(scopes.globals, 'globals');
-  const collectionVariables = makeScope(scopes.collection, 'collection');
-  const iterationData = makeScope(scopes.data, 'data');
-  const local = makeScope(scopes.local, 'local');
-  const variables = {
-    ...local,
-    get: (k) => mergeScopes()[k],
-    has: (k) => k in mergeScopes(),
-    toObject: () => mergeScopes(),
-  };
-
-  const request = input.request;
-  const response = input.response ? new PmResponse(input.response) : null;
-  const cookies = input.cookies || [];
-  const info = input.info || {};
-
-  const test = (name, fn) => {
-    const entry = { name: String(name), passed: true, skipped: false, error: null };
-    result.tests.push(entry);
-    try {
-      const out = fn && fn();
-      if (out && typeof out.then === 'function') {
-        Promise.resolve(out).catch((e) => { entry.passed = false; entry.error = e && e.message ? e.message : String(e); });
+    const result = { tests: [], error: null, nextRequest: undefined, visualizer: null, skipRequest: false };
+    const log = (level) => (...args) => host.log(level, format(...args));
+    const safeCallback = (fn) => {
+      try { fn(); } catch (e) {
+        result.error = result.error || (e && e.message) || String(e);
+        log('error')(e && e.stack ? `${e.message}\n${e.stack}` : String(e));
       }
-    } catch (e) {
-      entry.passed = false;
-      entry.error = e && e.message ? e.message : String(e);
+    };
+
+    const environment = makeScope(scopes.environment, 'environment');
+    const globals = makeScope(scopes.globals, 'globals');
+    const collectionVariables = makeScope(scopes.collection, 'collection');
+    const iterationData = makeScope(scopes.data, 'data');
+    const local = makeScope(scopes.local, 'local');
+    const variables = {
+      ...local,
+      get: (k) => mergeScopes()[k],
+      has: (k) => k in mergeScopes(),
+      toObject: () => mergeScopes(),
+    };
+
+    const request = input.request;
+    const response = input.response ? new PmResponse(input.response) : null;
+    const cookies = input.cookies || [];
+    const info = input.info || {};
+
+    const test = (name, fn) => {
+      const entry = { name: String(name), passed: true, skipped: false, error: null };
+      result.tests.push(entry);
+      try {
+        const out = fn && fn();
+        if (out && typeof out.then === 'function') {
+          Promise.resolve(out).catch((e) => { entry.passed = false; entry.error = e && e.message ? e.message : String(e); });
+        }
+      } catch (e) {
+        entry.passed = false;
+        entry.error = e && e.message ? e.message : String(e);
+      }
+    };
+    test.skip = (name) => { result.tests.push({ name: String(name), passed: true, skipped: true, error: null }); };
+
+    const sendRequest = (req, cb) => {
+      const p = hostCall((id) => host.send(id, stringify({ request: req, scopes }))).then((json) => new PmResponse(JSON.parse(json)));
+      return p.then(
+        (r) => { if (cb) safeCallback(() => cb(null, r)); return r; },
+        (err) => { if (cb) safeCallback(() => cb(err, null)); else throw err; },
+      );
+    };
+
+    const timers = new Map(); // handle -> host op id
+    let nextTimer = 1;
+    const setTimeout = (fn, ms, ...args) => {
+      const handle = nextTimer++;
+      hostCall((id) => { timers.set(handle, id); host.sleep(id, Number(ms) || 0); })
+        .then(() => { if (timers.delete(handle)) safeCallback(() => fn(...args)); }, () => {});
+      return handle;
+    };
+    const clearTimeout = (handle) => {
+      const id = timers.get(handle);
+      if (id === undefined) return;
+      timers.delete(handle);
+      host.cancel(id);
+      complete(id, false, 'cancelled');
+    };
+
+    const pm = {
+      info: { eventName: input.event, iteration: info.iteration || 0, iterationCount: info.iterationCount || 1, requestName: info.requestName, requestId: info.requestId },
+      environment,
+      globals,
+      collectionVariables,
+      iterationData,
+      variables,
+      request: makeRequestApi(request),
+      response,
+      cookies: {
+        get: (name) => { const c = cookies.find((x) => x.name === name); return c ? c.value : undefined; },
+        has: (name) => cookies.some((x) => x.name === name),
+        toObject: () => Object.fromEntries(cookies.map((c) => [c.name, c.value])),
+        all: () => cookies.slice(),
+      },
+      test,
+      get expect() { return getChai().expect; },
+      sendRequest,
+      setNextRequest: (name) => { result.nextRequest = name; },
+      execution: { setNextRequest: (name) => { result.nextRequest = name; }, skipRequest: () => { result.skipRequest = true; } },
+      visualizer: { set: (template, data) => { result.visualizer = { template: String(template), data: data || {} }; }, clear: () => { result.visualizer = null; } },
+    };
+
+    const util = { format, inspect: (v) => inspect(v, 1) };
+    const legacyTests = {};
+    const scriptGlobals = {
+      pm,
+      postman: {
+        setEnvironmentVariable: environment.set,
+        getEnvironmentVariable: environment.get,
+        clearEnvironmentVariable: environment.unset,
+        setGlobalVariable: globals.set,
+        getGlobalVariable: globals.get,
+        clearGlobalVariable: globals.unset,
+        setNextRequest: pm.setNextRequest,
+        getResponseHeader: (k) => (response ? response.headers.get(k) : undefined),
+      },
+      tests: legacyTests,
+      environment: scopes.environment,
+      globals: scopes.globals,
+      data: scopes.data,
+      iteration: pm.info.iteration,
+      request: { url: request.url, method: request.method, headers: Object.fromEntries((request.headers || []).map((h) => [h.key, h.value])) },
+      responseBody: response ? response.text() : undefined,
+      responseCode: response ? { code: response.code, name: response.status } : undefined,
+      responseTime: response ? response.responseTime : undefined,
+      responseHeaders: response ? response.headers.toObject() : undefined,
+      console: { log: log('log'), info: log('info'), warn: log('warn'), error: log('error'), debug: log('debug') },
+      CryptoJS,
+      require: (name) => {
+        if (name === 'chai') return getChai();
+        if (name === 'crypto-js') return CryptoJS;
+        if (name === 'util') return util;
+        if (name === 'url') return { URL, URLSearchParams };
+        if (name === 'buffer') return { Buffer };
+        throw new Error(`Module '${name}' is not available in the sandbox`);
+      },
+      setTimeout,
+      clearTimeout,
+      atob,
+      btoa,
+      URL,
+      URLSearchParams,
+      TextEncoder,
+      TextDecoder,
+      Buffer,
+    };
+
+    // The script's state as plain JSON, for the host to copy back.
+    function finish() {
+      for (const [name, passed] of Object.entries(legacyTests)) {
+        result.tests.push({ name, passed: !!passed, skipped: false, error: passed ? null : 'Assertion failed' });
+      }
+      return stringify({ scopes, request, result });
     }
-  };
-  test.skip = (name) => { result.tests.push({ name: String(name), passed: true, skipped: true, error: null }); };
 
-  const sendRequest = (req, cb) => {
-    const p = hostCall((id) => host.send(id, stringify({ request: req, scopes }))).then((json) => new PmResponse(JSON.parse(json)));
-    return p.then(
-      (r) => { if (cb) safeCallback(() => cb(null, r)); return r; },
-      (err) => { if (cb) safeCallback(() => cb(err, null)); else throw err; },
-    );
-  };
-
-  const timers = new Map(); // handle -> host op id
-  let nextTimer = 1;
-  const setTimeout = (fn, ms, ...args) => {
-    const handle = nextTimer++;
-    hostCall((id) => { timers.set(handle, id); host.sleep(id, Number(ms) || 0); })
-      .then(() => { if (timers.delete(handle)) safeCallback(() => fn(...args)); }, () => {});
-    return handle;
-  };
-  const clearTimeout = (handle) => {
-    const id = timers.get(handle);
-    if (id === undefined) return;
-    timers.delete(handle);
-    host.cancel(id);
-    complete(id, false, 'cancelled');
-  };
-
-  const pm = {
-    info: { eventName: input.event, iteration: info.iteration || 0, iterationCount: info.iterationCount || 1, requestName: info.requestName, requestId: info.requestId },
-    environment,
-    globals,
-    collectionVariables,
-    iterationData,
-    variables,
-    request: makeRequestApi(request),
-    response,
-    cookies: {
-      get: (name) => { const c = cookies.find((x) => x.name === name); return c ? c.value : undefined; },
-      has: (name) => cookies.some((x) => x.name === name),
-      toObject: () => Object.fromEntries(cookies.map((c) => [c.name, c.value])),
-      all: () => cookies.slice(),
-    },
-    test,
-    get expect() { return getChai().expect; },
-    sendRequest,
-    setNextRequest: (name) => { result.nextRequest = name; },
-    execution: { setNextRequest: (name) => { result.nextRequest = name; }, skipRequest: () => { result.skipRequest = true; } },
-    visualizer: { set: (template, data) => { result.visualizer = { template: String(template), data: data || {} }; }, clear: () => { result.visualizer = null; } },
-  };
-
-  const util = { format, inspect: (v) => inspect(v, 1) };
-  const legacyTests = {};
-  const scriptGlobals = {
-    pm,
-    postman: {
-      setEnvironmentVariable: environment.set,
-      getEnvironmentVariable: environment.get,
-      clearEnvironmentVariable: environment.unset,
-      setGlobalVariable: globals.set,
-      getGlobalVariable: globals.get,
-      clearGlobalVariable: globals.unset,
-      setNextRequest: pm.setNextRequest,
-      getResponseHeader: (k) => (response ? response.headers.get(k) : undefined),
-    },
-    tests: legacyTests,
-    environment: scopes.environment,
-    globals: scopes.globals,
-    data: scopes.data,
-    iteration: pm.info.iteration,
-    request: { url: request.url, method: request.method, headers: Object.fromEntries((request.headers || []).map((h) => [h.key, h.value])) },
-    responseBody: response ? response.text() : undefined,
-    responseCode: response ? { code: response.code, name: response.status } : undefined,
-    responseTime: response ? response.responseTime : undefined,
-    responseHeaders: response ? response.headers.toObject() : undefined,
-    console: { log: log('log'), info: log('info'), warn: log('warn'), error: log('error'), debug: log('debug') },
-    CryptoJS,
-    require: (name) => {
-      if (name === 'chai') return getChai();
-      if (name === 'crypto-js') return CryptoJS;
-      if (name === 'util') return util;
-      if (name === 'url') return { URL, URLSearchParams };
-      if (name === 'buffer') return { Buffer };
-      throw new Error(`Module '${name}' is not available in the sandbox`);
-    },
-    setTimeout,
-    clearTimeout,
-    atob,
-    btoa,
-    URL,
-    URLSearchParams,
-    TextEncoder,
-    TextDecoder,
-    Buffer,
-  };
-
-  // The script's state as plain JSON, for the host to copy back.
-  function finish() {
-    for (const [name, passed] of Object.entries(legacyTests)) {
-      result.tests.push({ name, passed: !!passed, skipped: false, error: passed ? null : 'Assertion failed' });
-    }
-    return stringify({ scopes, request, result });
+    return { globals: scriptGlobals, names: Object.keys(scriptGlobals), finish };
   }
 
-  return { globals: scriptGlobals, complete, finish };
+  return { createScript, complete };
 }

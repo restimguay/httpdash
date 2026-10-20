@@ -31,7 +31,7 @@ test('scripts cannot reach Node, the host or the file system', async () => {
     pm.environment.set('host', typeof __host + typeof __input + typeof createRuntime);
     pm.environment.set('escape', (function () { try { return typeof pm.constructor.constructor('return process')(); } catch (e) { return e.name; } })());
     pm.environment.set('escape2', typeof this.constructor.constructor('return this')().process);
-    pm.environment.set('escape3', typeof pm.test.constructor('return globalThis')().require);
+    pm.environment.set('escape3', typeof pm.test.constructor('return globalThis')().process);
     try { require('fs'); } catch (e) { pm.environment.set('fs', e.message); }
     try { require('child_process'); } catch (e) { pm.environment.set('cp', e.message); }
   `);
@@ -41,7 +41,7 @@ test('scripts cannot reach Node, the host or the file system', async () => {
   assert.strictEqual(env.host, 'undefinedundefinedundefined');
   assert.strictEqual(env.escape, 'ReferenceError'); // process is not defined
   assert.strictEqual(env.escape2, 'undefined');
-  assert.strictEqual(env.escape3, 'function'); // the sandbox's own require, not Node's
+  assert.strictEqual(env.escape3, 'undefined'); // no Node require anywhere in the sandbox
   assert.match(env.fs, /not available in the sandbox/);
   assert.match(env.cp, /not available in the sandbox/);
 });
@@ -261,4 +261,37 @@ test('flow control, visualizer and legacy globals come back to HttpDash', async 
 test('pm.execution.skipRequest is reported', async () => {
   const { result } = await run('pm.execution.skipRequest();');
   assert.strictEqual(result.skipRequest, true);
+});
+
+// ---- Sessions ---------------------------------------------------------------------------------
+
+test('scripts in one session get fresh globals', async () => {
+  const { ScriptSession } = require('../src/core/sandbox');
+  const session = new ScriptSession();
+  try {
+    const first = await run("const token = 'a'; globalThis.leaked = 1; var data = 1; pm.environment.set('first', typeof pm);", { session });
+    assert.strictEqual(first.result.error, null);
+    const second = await run("const token = 'b'; var data = 2; pm.environment.set('leaked', typeof leaked); pm.environment.set('data', data);", { session });
+    assert.strictEqual(second.result.error, null); // redeclaring "token" is fine: it's a new context
+    assert.strictEqual(second.env.leaked, 'undefined');
+    assert.strictEqual(second.env.data, 2);
+    const third = await run("pm.test('chai still works', () => pm.expect([1, 2]).to.deep.equal([1, 2]));", { session, event: 'test', response: { status: 200, statusText: 'OK', headers: [], bodyText: '' } });
+    assert.strictEqual(third.result.tests[0].passed, true);
+  } finally {
+    session.dispose();
+  }
+});
+
+test('a session recovers after a script times out', async () => {
+  const { ScriptSession } = require('../src/core/sandbox');
+  const session = new ScriptSession({ timeoutMs: 300 });
+  try {
+    const stuck = await run('while (true) {}', { session });
+    assert.match(stuck.result.error, /timed out/);
+    const next = await run("pm.environment.set('after', 'ok');", { session });
+    assert.strictEqual(next.result.error, null);
+    assert.strictEqual(next.env.after, 'ok');
+  } finally {
+    session.dispose();
+  }
 });
