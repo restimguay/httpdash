@@ -243,11 +243,13 @@
       HD.button('Export', () => HD.showExportAll(), { icon: 'upload', small: true }),
       HD.button('Runner', () => HD.openRunner(), { icon: 'play', small: true, ghost: true }),
       h('span.spacer'),
+      h('div#update-button'),
       h('div#env-select'),
       h('div#lock-button'),
       HD.button('', () => HD.showCookies(), { icon: 'cookie', ghost: true, title: 'Cookies' }),
       HD.button('', () => HD.showSettings(), { icon: 'gear', ghost: true, title: 'Settings' }));
     HD.renderEnvSelect();
+    if (HD.renderUpdateButton) HD.renderUpdateButton();
   };
 
   // ---- Console & status bar ----------------------------------------------------------------
@@ -293,11 +295,14 @@
     bar.append(
       HD.button('', () => { S.ws.ui.sidebarHidden = !S.ws.ui.sidebarHidden; HD.save(); applyLayout(); }, { icon: 'sidebar', ghost: true, small: true, title: 'Toggle sidebar (Ctrl+\\)' }),
       HD.button(errors ? `Console (${errors} errors)` : 'Console', () => { S.ws.ui.consoleOpen = !S.ws.ui.consoleOpen; HD.save(); renderConsole(); renderStatusbar(); }, { icon: 'terminal', ghost: true, small: true, class: errors ? 'has-errors' : '' }),
+      HD.coffeeUrl ? HD.button('Buy me a coffee', () => window.api.openExternal(HD.coffeeUrl), { icon: 'coffee', ghost: true, small: true, class: 'coffee-btn', title: 'Enjoying HttpDash? Buy me a coffee' }) : null,
       h('span.spacer'),
       HD.button('Cookies', () => HD.showCookies(), { icon: 'cookie', ghost: true, small: true }),
       HD.button('Runner', () => HD.openRunner(), { icon: 'play', ghost: true, small: true }),
       HD.button('', () => { S.ws.ui.layout = (S.ws.ui.layout || 'vertical') === 'vertical' ? 'horizontal' : 'vertical'; HD.save(); HD.renderActiveTab(); }, { icon: (S.ws.ui.layout || 'vertical') === 'vertical' ? 'columns' : 'rows', ghost: true, small: true, title: 'Toggle request/response layout' }));
   };
+
+  HD.renderStatusbar = () => renderStatusbar();
 
   const applyLayout = () => {
     const side = document.getElementById('sidebar-wrap');
@@ -339,6 +344,7 @@
     monitors: () => { S.ws.ui.sidebarTab = 'monitors'; HD.save(); HD.renderSidebar(); },
     team: () => { S.ws.ui.sidebarTab = 'team'; HD.save(); HD.renderSidebar(); if (!HD.teamRepos().length) HD.newTeamRepo(); },
     'team-sync': () => HD.teamRepos().forEach((r) => HD.teamSync(r)),
+    'check-updates': () => HD.checkForUpdates(),
   };
   HD.command = (name) => commands[name] && commands[name]();
   // Keyboard shortcuts are handled here; the application menu only displays them.
@@ -398,6 +404,8 @@
     HD.renderTopbarLock();
     HD.startIdleLock();
     HD.startMonitors();
+    HD.startTeamChecks();
+    HD.initUpdates().catch((e) => console.error(e));
     try {
       if (sessionStorage.getItem('hd-recovered')) {
         sessionStorage.removeItem('hd-recovered');

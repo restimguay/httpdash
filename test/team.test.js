@@ -194,3 +194,21 @@ test('commits without a message get a summary of what changed', () => {
   assert.strictEqual(describeChanges('M  collections/orders-api/health.request.json\nA  collections/orders-api/cancel-order.request.json\nD  environments/staging.json\nM  README.md\n'),
     'Add cancel-order; update health; remove staging');
 });
+
+test('a background check sees teammates\' new changes without merging them', async () => {
+  const url = bareRepo();
+  const alice = teammate(url, 'Alice');
+  const bob = teammate(url, 'Bob');
+  const ws = workspace();
+  await sync(alice, ws);
+  await sync(bob, null, { pullOnly: true });
+  assert.deepStrictEqual((await bob.check()).behind, 0);
+  const next = clone(ws);
+  next.collections[0].items[0].name = 'List every order';
+  await sync(alice, next);
+  const seen = await bob.check();
+  assert.strictEqual(seen.behind, 1);
+  assert.ok(seen.files.some((f) => f.endsWith('.request.json')));
+  assert.strictEqual(bob.read().collections[0].items[0].name, 'List orders'); // nothing merged yet
+  assert.deepStrictEqual(await teammate(url, 'New').check(), { ahead: 0, behind: 0, files: [] });
+});

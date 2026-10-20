@@ -69,6 +69,38 @@ environments/staging.json
 | --- | --- |
 | ![Team repository](docs/screenshots/30-team-repo.png) Connecting a repository | ![Conflict](docs/screenshots/32-team-conflict.png) Choosing whose version to keep |
 
+## Updates
+
+HttpDash keeps itself and your team's items up to date. Anything new shows an **Update** button in the header; with more than one update waiting, the button shows a count and a menu.
+
+- **App updates** come from this repository's GitHub releases. Choose the behaviour in **Settings → Updates**:
+  - **Install automatically:** new versions download in the background and install when you quit. **Restart to update** installs right away.
+  - **Show Update in the header** (the default): nothing is downloaded until you click **Update**, which shows the release notes with **Download and install**, **Later** and **Skip this version**.
+  - **Don't check.**
+  - **Include pre-releases** opts into beta versions.
+  - **Tools → Check for Updates…** checks right away.
+- **Where the app can install updates itself:**
+  - the Windows installer build;
+  - macOS when HttpDash is in a folder you can write to, such as Applications.
+
+  The portable Windows build and other locations open the download page instead. Downloads are checked against the SHA-256 checksum GitHub publishes for each release file.
+- **Team repositories** are checked in the background (every 2 minutes to every hour, set per repository in its Team tab). When teammates push, HttpDash either shows **Update** in the header or gets the changes automatically, also set per repository. Only changes inside the shared folder count.
+
+![Update menu](docs/screenshots/37-update-menu.png)
+
+### Buy me a coffee
+
+The status bar (lower left) and Settings → About have a **Buy me a coffee** link. Change it, or the repository updates come from, in `package.json`:
+
+```json
+"httpdash": {
+  "updateRepo": "restimguay/httpdash",
+  "buyMeACoffee": "https://www.buymeacoffee.com/restimguay"
+}
+```
+
+An empty `buyMeACoffee` hides the link.
+
 ## Command-line runner (CI and schedulers)
 
 Run collections without opening the app, like Postman's Newman. The runner needs Node.js 22+:
@@ -309,6 +341,7 @@ src/core/      request engine (no Electron dependency, unit-tested)
   codegen.js      code snippet generators
   repo-format.js  team repository file format
   gitsync.js      team sync through git
+  updates.js      app updates from GitHub releases
 src/main/      Electron main process, IPC, persistence, preload bridge
 src/renderer/  UI (plain JS + CodeMirror 5)
 test/          node:test unit tests against a local echo server

@@ -75,6 +75,7 @@
 
   const finish = async (r, res, pullOnly) => {
     pending.delete(r.id);
+    r.incoming = null;
     const summary = await applyTeam(r, res.team);
     const changes = describe(summary);
     r.lastSync = Date.now();
@@ -324,6 +325,13 @@
             h('label.field', h('span', 'Sign in with'),
               HD.select([['system', 'This computer\'s git (SSH key or credential manager)'], ['token', 'An access token']], r.auth || 'system', (v) => { r.auth = v; touch(); rerender(); })),
             r.auth === 'token' ? tokenBox : h('div.muted.small', 'Uses whatever git already uses on this computer. If "git clone" works in a terminal, it works here.'),
+            h('div.section-title', 'Teammates\' changes'),
+            h('div.team-row2',
+              h('label.field', h('span', 'When teammates push'),
+                HD.select([['notify', 'Show Update in the header'], ['auto', 'Get them automatically'], ['off', 'Do nothing']], r.autoUpdate || 'notify', (v) => { r.autoUpdate = v; touch(); HD.checkTeamUpdates(); })),
+              h('label.field', h('span', 'Check every'),
+                HD.select([[2, '2 minutes'], [5, '5 minutes'], [15, '15 minutes'], [30, '30 minutes'], [60, '1 hour']], r.checkMinutes || 5, (v) => { r.checkMinutes = Number(v); touch(); }))),
+            r.incoming && r.incoming.behind ? h('div.small.text-warn', `${r.incoming.behind} new change${r.incoming.behind > 1 ? 's' : ''} from teammates — click Get latest.`) : null,
             h('div.section-title', 'Commit message'),
             h('input.input', { value: tab.ui.message, placeholder: 'Describe your change (optional; a summary is written for you)', oninput: (e) => { tab.ui.message = e.target.value; } }),
             h('div.muted.small.team-help',
@@ -350,7 +358,39 @@
     }).catch((e) => { HD.clear(logBox).appendChild(h('div.muted.small', HD.cleanErr(e))); });
   };
 
+  // ---- Background checks for teammates' changes ---------------------------------------------
+
+  const checking = new Set();
+  const checkRepo = async (r, force) => {
+    const mode = r.autoUpdate || 'notify';
+    if (mode === 'off' || !r.url || !r.joined || busy.has(r.id) || pending.has(r.id) || checking.has(r.id)) return;
+    if (!force && Date.now() - (r.lastCheck || 0) < (r.checkMinutes || 5) * 60000) return;
+    checking.add(r.id);
+    try {
+      const res = await window.api.team.check(config(r));
+      r.lastCheck = Date.now();
+      const had = r.incoming && r.incoming.behind;
+      r.incoming = res.behind ? { behind: res.behind, files: res.files, at: Date.now() } : null;
+      if (res.behind && mode === 'auto') await HD.teamSync(r, { pullOnly: true });
+      else if (res.behind && !had) HD.log('info', `Team "${r.name}": ${res.behind} new change(s) from teammates`);
+      HD.save();
+    } catch (e) {
+      r.lastCheck = Date.now(); // a network hiccup waits for the next interval
+    } finally {
+      checking.delete(r.id);
+      refresh();
+    }
+  };
+  HD.checkTeamUpdates = (force = true) => Promise.all(repos().map((r) => checkRepo(r, force)));
+  HD.teamIncoming = () => repos().filter((r) => r.incoming && r.incoming.behind && (r.autoUpdate || 'notify') !== 'off');
+  HD.startTeamChecks = () => {
+    const tick = () => { if (!document.body.classList.contains('is-locked')) repos().forEach((r) => checkRepo(r, false)); };
+    setInterval(tick, 30000);
+    setTimeout(tick, 8000);
+  };
+
   HD.on('team', () => {
+    if (HD.renderUpdateButton) HD.renderUpdateButton();
     const t = HD.currentTab();
     if (t && t.kind === 'team') HD.renderActiveTab();
     if ((S.ws.ui.sidebarTab || '') === 'team') HD.renderSidebar();

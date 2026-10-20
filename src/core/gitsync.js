@@ -206,6 +206,20 @@ class TeamRepo {
     return { ahead, behind };
   }
 
+  // Fetches without merging and reports how many team commits are waiting. Cheap enough to poll.
+  async check() {
+    if (!fs.existsSync(path.join(this.dir, '.git'))) return { ahead: 0, behind: 0, files: [] };
+    await this.git(['fetch', 'origin']);
+    const status = await this.aheadBehind();
+    let files = [];
+    if (status.behind && (await this.hasCommits())) {
+      const r = await this.git(['diff', '--name-only', `HEAD...origin/${this.branch}`, '--', this.rel], { allowFail: true });
+      files = r.stdout.split('\n').filter(Boolean);
+    }
+    // Only changes inside the shared folder count.
+    return { ...status, behind: files.length ? status.behind : 0, files: files.slice(0, 50) };
+  }
+
   async log(limit = 20) {
     if (!(await this.hasCommits())) return [];
     const r = await this.git(['log', `-${limit}`, '--date=iso-strict', '--pretty=format:%h%x1f%an%x1f%ad%x1f%s', '--', this.rel]);

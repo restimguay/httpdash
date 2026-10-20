@@ -80,6 +80,17 @@ contextBridge.exposeInMainWorld('api', {
     abort: invoke('team:abort'),
     log: invoke('team:log'),
     remove: invoke('team:remove'),
+    check: invoke('team:check'),
+  },
+  updates: {
+    status: invoke('update:status'),
+    check: invoke('update:check'),
+    download: invoke('update:download'),
+    setConfig: invoke('update:setConfig'),
+    skip: invoke('update:skip'),
+    openPage: invoke('update:openPage'),
+    install: invoke('update:install'),
+    onStatus: (fn) => ipcRenderer.on('update:status', (_e, state) => fn(state)),
   },
   onMenu: (fn) => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
 });

@@ -137,6 +137,8 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Team Repositories', click: send('team') },
         { label: 'Sync with Team', click: send('team-sync') },
+        { type: 'separator' },
+        { label: 'Check for Updates…', click: send('check-updates') },
       ],
     },
     { role: 'windowMenu' },
@@ -182,7 +184,7 @@ handle('lock:disable', ({ username, password }) => audited('lock.disable', { use
 
 handle('workspace:load', () => workspaceStore.load());
 handle('workspace:save', (data) => { workspaceStore.save(data); return true; });
-handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, dataDir, dark: nativeTheme.shouldUseDarkColors }));
+handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, dataDir, dark: nativeTheme.shouldUseDarkColors, coffeeUrl: (require('../../package.json').httpdash || {}).buyMeACoffee || '' }));
 
 handle('request:send', async ({ id, request, chain, scopes, settings, info, collection }) => {
   const controller = new AbortController();
@@ -370,6 +372,28 @@ handle('audit:export', async () => {
   return r.filePath;
 });
 
+// ---- App updates and links (package.json "httpdash" section) ------------------------------
+const pkg = require('../../package.json');
+const links = pkg.httpdash || {};
+const { AppUpdater } = require('./app-updater');
+const updater = new AppUpdater({
+  dataDir,
+  repo: links.updateRepo || 'restimguay/httpdash',
+  onChange: (state) => { if (win && !win.isDestroyed()) win.webContents.send('update:status', state); },
+  log: (event, details) => audit.append(event, details),
+});
+handle('update:status', () => updater.publicState());
+handle('update:check', () => updater.check({ manual: true }));
+handle('update:download', () => updater.download());
+handle('update:setConfig', (patch) => updater.setConfig(patch || {}));
+handle('update:skip', (version) => updater.skip(version));
+handle('update:openPage', () => { updater.openReleasePage(); return true; });
+handle('update:install', () => {
+  if (!updater.install({ relaunch: true })) return false;
+  setTimeout(() => app.quit(), 200);
+  return true;
+});
+
 // ---- Team sync through a git repository --------------------------------------------------
 // Clones live in <data>/team/<repoId>; access tokens are kept apart from the workspace, encrypted.
 const { TeamRepo, sync: teamSync, finishConflicts } = require('../core/gitsync');
@@ -423,6 +447,7 @@ handle('team:resolve', ({ repo, side, pullOnly }) => queued(repo.id, () => teamA
 handle('team:apply', ({ local, team, repoId, keepMissing }) => repoFormat.applyRepo(local, team, repoId, { keepMissing }));
 handle('team:scan', (state) => scanWorkspace({ ...repoFormat.shareable(state), globals: [] }));
 handle('team:abort', (repo) => queued(repo.id, async () => { await (await teamRepo(repo)).abortMerge(); return true; }));
+handle('team:check', (repo) => queued(repo.id, async () => (await teamRepo(repo)).check()));
 handle('team:log', (repo) => queued(repo.id, async () => {
   const r = await teamRepo(repo);
   if (!fs.existsSync(path.join(r.dir, '.git'))) return [];
@@ -504,6 +529,11 @@ handle('shell:openExternal', (url) => { if (/^https?:/.test(url)) shell.openExte
 app.whenReady().then(() => {
   buildMenu();
   createWindow();
+  updater.start();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+});
+// With automatic updates, a downloaded version is installed as the app quits.
+app.on('will-quit', () => {
+  if (updater.config.mode === 'auto' && updater.state.status === 'ready') updater.install({ relaunch: false });
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

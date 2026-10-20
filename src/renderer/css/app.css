@@ -737,3 +737,15 @@ body.is-locked > :not(.lock-screen):not(#toasts) { visibility: hidden; }
 @media (max-width: 900px) {
   .team-grid, .team-row2 { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---- Updates & coffee ---- */
+#update-button { display: flex; align-items: center; gap: 4px; position: relative; }
+#update-button:empty { display: none; }
+.update-count { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--err); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.update-dialog { display: flex; flex-direction: column; gap: 10px; }
+.update-notes { white-space: pre-wrap; font-family: inherit; font-size: 12.5px; max-height: 280px; overflow: auto; margin: 0; padding: 10px 12px; background: var(--bg-2, var(--bg-hover)); border-radius: var(--radius); }
+.update-progress { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.update-progress-bar { height: 100%; background: var(--accent); transition: width .2s; }
+.text-ok { color: var(--ok); }
+.text-err { color: var(--err); }
+.coffee-btn .icon { color: #c47a2c; }

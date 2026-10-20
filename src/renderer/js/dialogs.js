@@ -200,7 +200,7 @@
     const body = h('div.settings');
     const render = () => {
       HD.clear(body);
-      const nav = HD.tabStrip([{ id: 'general', label: 'General' }, { id: 'proxy', label: 'Proxy' }, { id: 'appearance', label: 'Appearance' }, { id: 'security', label: 'Security' }, { id: 'data', label: 'Data' }, { id: 'about', label: 'About' }], section, (id) => { section = id; render(); });
+      const nav = HD.tabStrip([{ id: 'general', label: 'General' }, { id: 'proxy', label: 'Proxy' }, { id: 'appearance', label: 'Appearance' }, { id: 'security', label: 'Security' }, { id: 'data', label: 'Data' }, { id: 'updates', label: 'Updates' }, { id: 'about', label: 'About' }], section, (id) => { section = id; render(); });
       const panel = h('div.settings-panel');
       if (section === 'general') {
         panel.append(
@@ -229,13 +229,16 @@
           h('div.setting-row', h('div', h('div.setting-label', 'Request / response layout')), HD.select([['vertical', 'Stacked (response below)'], ['horizontal', 'Side by side']], S.ws.ui.layout || 'vertical', (v) => { S.ws.ui.layout = v; HD.save(); HD.renderActiveTab(); })));
       } else if (section === 'security') {
         HD.renderSecuritySettings(panel);
+      } else if (section === 'updates') {
+        HD.renderUpdateSettings(panel);
       } else if (section === 'data') {
         panel.append(
           h('div.setting-row', h('div', h('div.setting-label', 'Export all'), h('div.setting-help', 'Back up everything to one file, or export all collections and environments in Postman format. Restore a backup with Import.')), HD.button('Export all…', () => HD.showExportAll(), { small: true })),
           h('div.setting-row', h('div', h('div.setting-label', 'Clear history')), HD.button('Clear', async () => { if (await HD.confirm('Clear history', 'Delete all history entries?', { danger: true, okLabel: 'Clear' })) { S.ws.history = []; HD.save(); HD.emit('history'); } }, { small: true, danger: true })),
           h('div.setting-row', h('div', h('div.setting-label', 'Data folder'), h('div.setting-help.mono', info.dataDir))));
       } else {
-        panel.append(h('div.about', h('div.about-name', 'HttpDash'), h('div', `Version ${info.version}`), h('div.muted', 'A Postman-style API client built with Electron.')));
+        panel.append(h('div.about', h('div.about-name', 'HttpDash'), h('div', `Version ${info.version}`), h('div.muted', 'A Postman-style API client built with Electron.'),
+          info.coffeeUrl ? HD.button('Buy me a coffee', () => window.api.openExternal(info.coffeeUrl), { icon: 'coffee', small: true }) : null));
       }
       body.append(nav, panel);
     };
