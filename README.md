@@ -40,7 +40,7 @@ To build locally, run `npm run dist:mac` on a Mac, `npm run dist:win` on Windows
 **Updates.** **Help → Check for Updates…** asks GitHub whether a newer release exists and links to it. HttpDash never checks on its own.
 
 **Code signing.** Without certificates, the Mac build is ad-hoc signed and the Windows build is unsigned:
-- **macOS:** the first launch is blocked by Gatekeeper. Right-click the app and choose **Open**, or run `xattr -cr /Applications/HttpDash.app`.
+- **macOS:** the first launch is blocked with "Apple could not verify HttpDash is free of malware". Click **Done**, then open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Or run `xattr -dr com.apple.quarantine /Applications/HttpDash.app` in Terminal. (Right-click → Open no longer works on macOS 15 and later.)
 - **Windows:** SmartScreen may warn. Choose **More info → Run anyway**.
 
 To sign (and notarize on Mac), add these repository secrets; the workflow picks them up automatically:
