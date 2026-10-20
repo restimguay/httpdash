@@ -4,6 +4,18 @@ Notable changes to HttpDash. The format follows [Keep a Changelog](https://keepa
 
 ## [Unreleased]
 
+### Added
+- **OAuth 2.0 sign-in grants:** Authorization Code, Authorization Code with PKCE (SHA-256 or plain) and Implicit. Sign in in an HttpDash window, which catches the redirect to any registered callback URL, or in your own browser with a callback on `127.0.0.1` or `localhost`.
+- OAuth 2.0 refresh tokens, with a **Refresh Token** button, token expiry, **Clear Token** and **Sign Out of Providers**.
+- OAuth 2.0 **Audience** field (used by Auth0 and others).
+
+### Fixed
+- Postman collections using OAuth 2.0 with the password grant (`password_credentials`) now import correctly, and OAuth 2.0 settings export with Postman's parameter names, including the callback URL, PKCE method and client authentication.
+- Public OAuth clients (no client secret) send `client_id` in the request body instead of an empty Basic Auth header.
+
+### Security
+- OAuth 2.0 access and refresh tokens are never written to team repositories; each person keeps their own when pulling the team's changes. Refresh tokens are also left out of exports with "Leave out secrets" and flagged by the secret scan.
+
 ## [1.0.0] - 2026-10-21
 
 First release.

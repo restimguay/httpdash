@@ -244,7 +244,10 @@ Some of these are set automatically if you don't set them (User-Agent, Accept, A
 - Any HTTP method, URL bar with `{{variable}}` highlighting, hover tooltips and autocomplete
 - Query params table synced with the URL, path variables (`/users/:id`), headers with bulk edit
 - Bodies: raw (JSON / XML / HTML / JavaScript / text, with beautify and JSON linting), `form-data` with file uploads, `x-www-form-urlencoded`, binary file, GraphQL (query + variables)
-- Auth: inherit from parent, Basic, Bearer, API key (header or query), Digest, OAuth 2.0 (client credentials and password grants, with a "Get New Access Token" button), AWS Signature v4
+- Auth: inherit from parent, Basic, Bearer, API key (header or query), Digest, AWS Signature v4, and OAuth 2.0 with every common grant:
+  - **Authorization Code**, with or without **PKCE**, and **Implicit**: sign in in an HttpDash window, which catches the redirect to any registered callback URL, or in your own browser with a callback on `127.0.0.1` (RFC 8252)
+  - **Client Credentials** and **Password**
+  - Refresh tokens, expiry display and "Sign Out of Providers". Tokens you get by signing in are never shared through team sync; each person keeps their own.
 - Per-request settings: follow redirects, SSL verification, cookies, timeout
 - Paste a cURL command into the URL bar to import it
 
@@ -293,7 +296,7 @@ Some of these are set automatically if you don't set them (User-Agent, Accept, A
 
 ## Not included
 
-Compared with Postman, these are not implemented: WebSocket, gRPC, Socket.IO and MQTT requests; OAuth 2.0 authorization-code and implicit flows; NTLM, Hawk and Akamai auth; client certificates; API documentation publishing and hosted cloud sync (team sharing works through git instead); YAML OpenAPI import.
+Compared with Postman, these are not implemented: WebSocket, gRPC, Socket.IO and MQTT requests; NTLM, Hawk and Akamai auth; client certificates; API documentation publishing and hosted cloud sync (team sharing works through git instead); YAML OpenAPI import.
 
 Scripts run in Node's `vm` module in the main process. That is not a security boundary, so only run collections whose scripts you trust (Postman has the same caveat).
 

@@ -58,27 +58,62 @@ function uniqueName(used, base) {
   return name;
 }
 
+// OAuth 2.0 tokens obtained by signing in belong to the person who signed in, so they are never
+// shared; each person keeps their own (see keepLocalTokens). References like {{token}} are kept.
+const TOKEN_FIELDS = ['accessToken', 'refreshToken', 'tokenExpiresAt'];
+const isVarRef = (v) => /^\s*\{\{[^{}]+\}\}\s*$/.test(String(v || ''));
+function shareAuth(auth) {
+  if (!auth || auth.type !== 'oauth2' || !auth.oauth2) return auth;
+  const o = { ...auth.oauth2 };
+  for (const f of TOKEN_FIELDS) if (o[f] && !isVarRef(o[f])) o[f] = '';
+  return { ...auth, oauth2: o };
+}
+const shareItems = (items) => (items || []).map((it) => (it.type === 'folder'
+  ? { ...it, auth: shareAuth(it.auth), items: shareItems(it.items) }
+  : { ...it, request: it.request && { ...it.request, auth: shareAuth(it.request.auth) } }));
+
+// Puts this person's own OAuth 2.0 tokens back into the team's copy of a collection.
+function keepLocalTokens(teamCol, localCol) {
+  if (!localCol) return teamCol;
+  const mine = new Map();
+  const collect = (id, auth) => { if (auth && auth.type === 'oauth2' && auth.oauth2) mine.set(id, auth.oauth2); };
+  const walkLocal = (items) => (items || []).forEach((it) => { if (it.type === 'folder') { collect(it.id, it.auth); walkLocal(it.items); } else collect(it.id, it.request && it.request.auth); });
+  collect(localCol.id, localCol.auth);
+  walkLocal(localCol.items);
+  const restore = (id, auth) => {
+    const own = mine.get(id);
+    if (!own || !auth || auth.type !== 'oauth2' || !auth.oauth2) return auth;
+    const o = { ...auth.oauth2 };
+    for (const f of TOKEN_FIELDS) if (!o[f] && own[f]) o[f] = own[f];
+    return { ...auth, oauth2: o };
+  };
+  const walkTeam = (items) => (items || []).map((it) => (it.type === 'folder'
+    ? { ...it, auth: restore(it.id, it.auth), items: walkTeam(it.items) }
+    : { ...it, request: it.request && { ...it.request, auth: restore(it.id, it.request.auth) } }));
+  return { ...teamCol, auth: restore(teamCol.id, teamCol.auth), items: walkTeam(teamCol.items) };
+}
+
 // The collections and environments exactly as they will be written: secrets and tokens blanked.
 function shareable({ collections = [], environments = [] }) {
   const tokenVars = tokenVarsOf(collections);
   return {
-    collections: collections.map((c) => ({ ...c, variables: shareVars(c.variables, tokenVars) })),
+    collections: collections.map((c) => ({ ...c, auth: shareAuth(c.auth), items: shareItems(c.items), variables: shareVars(c.variables, tokenVars) })),
     environments: environments.map((e) => ({ ...e, values: shareVars(e.values, tokenVars) })),
   };
 }
 
 // What each file holds. Shared by writeRepo and by change detection, so both see the same fields.
 const collectionMeta = (col, tokenVars) => ({
-  id: col.id, name: col.name, description: col.description || '', auth: col.auth, preRequestScript: col.preRequestScript || '', testScript: col.testScript || '',
+  id: col.id, name: col.name, description: col.description || '', auth: shareAuth(col.auth), preRequestScript: col.preRequestScript || '', testScript: col.testScript || '',
   variables: shareVars(col.variables, tokenVars),
   ...(col.dependency ? { dependency: col.dependency } : {}),
   ...(col.mock ? { mock: col.mock } : {}),
 });
 const folderMeta = (it, seq) => ({
-  id: it.id, seq, name: it.name, description: it.description || '', auth: it.auth, preRequestScript: it.preRequestScript || '', testScript: it.testScript || '',
+  id: it.id, seq, name: it.name, description: it.description || '', auth: shareAuth(it.auth), preRequestScript: it.preRequestScript || '', testScript: it.testScript || '',
   ...(it.dependency ? { dependency: it.dependency } : {}),
 });
-const requestFile = (it, seq) => ({ id: it.id, seq, name: it.name, request: it.request, ...(it.examples && it.examples.length ? { examples: it.examples } : {}) });
+const requestFile = (it, seq) => ({ id: it.id, seq, name: it.name, request: it.request && { ...it.request, auth: shareAuth(it.request.auth) }, ...(it.examples && it.examples.length ? { examples: it.examples } : {}) });
 const environmentFile = (env, tokenVars) => ({ id: env.id, name: env.name, values: shareVars(env.values, tokenVars) });
 
 /**
@@ -211,7 +246,7 @@ function applyRepo(local, repoState, repoId, { keepMissing = false } = {}) {
     return out;
   };
   const collections = merge(local.collections || [], repoState.collections, 'collection', (t, mine) => ({
-    ...t, variables: keepLocalValues(t.variables, mine && mine.variables),
+    ...keepLocalTokens(t, mine), variables: keepLocalValues(t.variables, mine && mine.variables),
   }));
   const environments = merge(local.environments || [], repoState.environments, 'environment', (t, mine) => ({
     ...t, values: keepLocalValues(t.values, mine && mine.values),
@@ -223,4 +258,4 @@ function applyRepo(local, repoState, repoId, { keepMissing = false } = {}) {
 // JSON with sorted keys, so key order alone never counts as a change.
 const canonical = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x));
 
-module.exports = { shareable, writeRepo, readRepo, applyRepo, keepLocalValues, slug, FORMAT };
+module.exports = { shareable, writeRepo, readRepo, applyRepo, keepLocalValues, keepLocalTokens, slug, FORMAT };

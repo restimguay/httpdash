@@ -497,8 +497,8 @@
       const right = h('div.auth-fields');
       const t = auth.type || 'none';
       const cfg = (auth[t] = auth[t] || {});
-      const field = (key, label, { type = 'text', placeholder = '', options } = {}) => h('label.field', h('span', label), options
-        ? HD.select(options, cfg[key] || options[0][0], (v) => { cfg[key] = v; onChange(); })
+      const field = (key, label, { type = 'text', placeholder = '', options, rerender } = {}) => h('label.field', h('span', label), options
+        ? HD.select(options, cfg[key] || options[0][0], (v) => { cfg[key] = v; onChange(); if (rerender) render(); })
         : h('input.input', { type, value: cfg[key] || '', placeholder, spellcheck: 'false', oninput: (e) => { cfg[key] = e.target.value; onChange(); } }));
 
       if (t === 'inherit') {
@@ -513,32 +513,70 @@
       else if (t === 'apikey') right.append(field('key', 'Key'), field('value', 'Value'), field('in', 'Add to', { options: [['header', 'Header'], ['query', 'Query Params']] }));
       else if (t === 'awsv4') right.append(field('accessKey', 'AccessKey'), field('secretKey', 'SecretKey', { type: 'password' }), field('region', 'AWS Region', { placeholder: 'us-east-1' }), field('service', 'Service Name', { placeholder: 'execute-api' }), field('sessionToken', 'Session Token'));
       else if (t === 'oauth2') {
-        right.append(
+        const grant = cfg.grantType || 'client_credentials';
+        const signIn = ['authorization_code', 'authorization_code_with_pkce', 'implicit'].includes(grant);
+        const cleanError = (e) => e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+        const store = (tok) => {
+          cfg.accessToken = tok.access_token;
+          if (tok.refresh_token) cfg.refreshToken = tok.refresh_token;
+          cfg.tokenExpiresAt = tok.expires_in ? Date.now() + tok.expires_in * 1000 : '';
+          if (tok.token_type && !cfg.headerPrefix) cfg.headerPrefix = /bearer/i.test(tok.token_type) ? 'Bearer' : tok.token_type;
+          onChange();
+          render();
+          HD.toast(`Token received${tok.expires_in ? ` (expires in ${tok.expires_in >= 120 ? `${Math.round(tok.expires_in / 60)} minutes` : `${tok.expires_in} seconds`})` : ''}`, 'success');
+        };
+        const expiry = cfg.accessToken && cfg.tokenExpiresAt
+          ? (cfg.tokenExpiresAt > Date.now() ? `Expires ${new Date(cfg.tokenExpiresAt).toLocaleString()}` : 'Expired')
+          : null;
+        const getToken = HD.button(signIn ? 'Sign In and Get Token' : 'Get New Access Token', async () => {
+          const need = signIn ? [['authUrl', 'Auth URL'], ['callbackUrl', 'Callback URL'], ['clientId', 'Client ID']] : [['accessTokenUrl', 'Access Token URL']];
+          if (grant !== 'implicit' && signIn) need.push(['accessTokenUrl', 'Access Token URL']);
+          const missing = need.find(([k]) => !cfg[k]);
+          if (missing) { HD.toast(`Enter the ${missing[1]}`, 'warn'); return; }
+          getToken.disabled = true;
+          if (signIn) HD.toast(cfg.useBrowser ? 'Finish signing in in your browser…' : 'Finish signing in in the window that opened…', 'info');
+          try {
+            store(await window.api.getOAuth2Token({ config: { ...cfg, grantType: grant }, scopes: scopes ? scopes() : {}, settings: S.ws.settings }));
+          } catch (e) {
+            HD.toast(cleanError(e), 'error', 6000);
+          } finally { getToken.disabled = false; }
+        }, { primary: true });
+        right.append(...[
           field('accessToken', 'Access Token', { placeholder: 'Paste a token or get a new one below' }),
+          expiry || cfg.refreshToken ? h('div.token-status',
+            expiry ? h(`span${expiry === 'Expired' ? '.text-error' : '.muted'}`, expiry) : null,
+            cfg.refreshToken ? HD.button('Refresh Token', async () => {
+              try { store(await window.api.refreshOAuth2Token({ config: cfg, scopes: scopes ? scopes() : {}, settings: S.ws.settings })); } catch (e) { HD.toast(cleanError(e), 'error', 6000); }
+            }, { small: true }) : null,
+            HD.button('Clear Token', () => { cfg.accessToken = ''; cfg.refreshToken = ''; cfg.tokenExpiresAt = ''; onChange(); render(); }, { small: true, ghost: true })) : null,
           field('headerPrefix', 'Header Prefix', { placeholder: 'Bearer' }),
           field('addTo', 'Add token to', { options: [['header', 'Request Headers'], ['query', 'Query Params']] }),
           h('div.section-title', 'Configure New Token'),
-          field('grantType', 'Grant Type', { options: [['client_credentials', 'Client Credentials'], ['password', 'Password Credentials']] }),
-          field('accessTokenUrl', 'Access Token URL', { placeholder: 'https://auth.example.com/oauth/token' }),
+          field('grantType', 'Grant Type', {
+            rerender: true,
+            options: [['authorization_code_with_pkce', 'Authorization Code (with PKCE)'], ['authorization_code', 'Authorization Code'], ['implicit', 'Implicit'], ['client_credentials', 'Client Credentials'], ['password', 'Password Credentials']],
+          }),
+          signIn ? field('authUrl', 'Auth URL', { placeholder: 'https://auth.example.com/authorize' }) : null,
+          grant !== 'implicit' ? field('accessTokenUrl', 'Access Token URL', { placeholder: 'https://auth.example.com/oauth/token' }) : null,
+          signIn ? field('callbackUrl', 'Callback URL', { placeholder: cfg.useBrowser ? 'http://127.0.0.1:8765/callback' : 'https://httpdash.com/oauth/callback' }) : null,
+          signIn ? h('label.check-field', h('input', { type: 'checkbox', checked: !!cfg.useBrowser, onchange: (e) => { cfg.useBrowser = e.target.checked; onChange(); render(); } }),
+            h('span', 'Sign in with my browser'), h('span.muted.small', cfg.useBrowser
+              ? 'HttpDash listens on the callback URL, which must be on this computer with a port, e.g. http://127.0.0.1:8765/callback.'
+              : 'Signs in in an HttpDash window. Any callback URL registered with the provider works; HttpDash catches the redirect.')) : null,
           field('clientId', 'Client ID'),
-          field('clientSecret', 'Client Secret', { type: 'password' }),
-          field('scope', 'Scope', { placeholder: 'e.g. read:org' }),
-          field('username', 'Username (password grant)'),
-          field('password', 'Password (password grant)', { type: 'password' }),
-          field('clientAuth', 'Client Authentication', { options: [['header', 'Send as Basic Auth header'], ['body', 'Send client credentials in body']] }),
-          HD.button('Get New Access Token', async () => {
-            if (!cfg.accessTokenUrl) { HD.toast('Enter the Access Token URL', 'warn'); return; }
-            try {
-              const tok = await window.api.getOAuth2Token({ config: { grantType: 'client_credentials', ...cfg }, scopes: scopes ? scopes() : {}, settings: S.ws.settings });
-              cfg.accessToken = tok.access_token;
-              if (tok.token_type && !cfg.headerPrefix) cfg.headerPrefix = /bearer/i.test(tok.token_type) ? 'Bearer' : tok.token_type;
-              onChange();
-              render();
-              HD.toast(`Token received${tok.expires_in ? ` (expires in ${tok.expires_in}s)` : ''}`, 'success');
-            } catch (e) {
-              HD.toast(e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'error', 6000);
-            }
-          }, { primary: true }));
+          grant !== 'implicit' ? field('clientSecret', grant === 'authorization_code_with_pkce' ? 'Client Secret (optional)' : 'Client Secret', { type: 'password' }) : null,
+          grant === 'authorization_code_with_pkce' ? field('pkceMethod', 'Code Challenge Method', { options: [['S256', 'SHA-256'], ['plain', 'Plain']] }) : null,
+          field('scope', 'Scope', { placeholder: 'e.g. openid profile read:orders' }),
+          field('audience', 'Audience (optional)', { placeholder: 'e.g. https://api.example.com (Auth0)' }),
+          grant === 'password' ? field('username', 'Username') : null,
+          grant === 'password' ? field('password', 'Password', { type: 'password' }) : null,
+          grant !== 'implicit' ? field('clientAuth', 'Client Authentication', { options: [['header', 'Send as Basic Auth header'], ['body', 'Send client credentials in body']] }) : null,
+          h('div.oauth-actions', getToken,
+            signIn && !cfg.useBrowser ? HD.button('Sign Out of Providers', async () => {
+              await window.api.clearOAuth2Sessions();
+              HD.toast('Signed out of every provider used in the sign-in window', 'success');
+            }, { ghost: true, title: 'Clears cookies from the sign-in window, so the next sign-in asks for your account again' }) : null),
+        ].filter(Boolean)); // hidden fields are null, which append() would show as text
       }
       root.append(left, right);
     };
@@ -555,7 +593,7 @@
       bearer: 'Sends an "Authorization: Bearer <token>" header.',
       apikey: 'Sends a key/value pair as a header or query parameter.',
       digest: 'HTTP Digest authentication (MD5 / SHA-256, qop=auth).',
-      oauth2: 'Sends an OAuth 2.0 access token. Tokens can be fetched with client credentials or password grants.',
+      oauth2: 'Sends an OAuth 2.0 access token. Get one by signing in (authorization code, with or without PKCE, or implicit) or with client credentials or a password.',
       awsv4: 'Signs the request with AWS Signature Version 4.',
     }[t] || '';
   }

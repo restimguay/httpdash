@@ -3,6 +3,7 @@
 // Import/export of Postman collection (v2.0 / v2.1) and environment files, plus OpenAPI/Swagger JSON import.
 const { uid, newRequestDef, newCollection, newFolder, newEnvironment } = require('./model');
 const { paramsFromUrl } = require('./curl');
+const oauth2 = require('./oauth2');
 
 const SCHEMA_V21 = 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json';
 
@@ -23,7 +24,7 @@ function importAuth(auth) {
   else if (params && typeof params === 'object') Object.assign(obj, params);
   const out = { type };
   if (type === 'apikey') out.apikey = { key: obj.key || '', value: obj.value || '', in: obj.in || 'header' };
-  else if (type === 'oauth2') out.oauth2 = { accessToken: obj.accessToken || '', addTo: obj.addTokenTo === 'queryParams' ? 'query' : 'header', headerPrefix: obj.headerPrefix || 'Bearer', grantType: obj.grant_type || 'client_credentials', accessTokenUrl: obj.accessTokenUrl || '', clientId: obj.clientId || '', clientSecret: obj.clientSecret || '', scope: obj.scope || '', username: obj.username || '', password: obj.password || '' };
+  else if (type === 'oauth2') out.oauth2 = oauth2.fromPostman(obj);
   else if (type === 'awsv4') out.awsv4 = { accessKey: obj.accessKey || '', secretKey: obj.secretKey || '', region: obj.region || '', service: obj.service || '', sessionToken: obj.sessionToken || '' };
   else if (['basic', 'bearer', 'digest'].includes(type)) out[type] = obj;
   else if (type !== 'none') return { type: 'none' }; // Unsupported auth types (ntlm, hawk, ...) fall back to none.
@@ -245,11 +246,7 @@ function reId(node) {
 function exportAuth(auth) {
   if (!auth || auth.type === 'inherit') return undefined;
   if (auth.type === 'none') return { type: 'noauth' };
-  const params = { ...(auth[auth.type] || {}) };
-  if (auth.type === 'oauth2') {
-    params.addTokenTo = params.addTo === 'query' ? 'queryParams' : 'header';
-    delete params.addTo;
-  }
+  const params = auth.type === 'oauth2' ? oauth2.toPostman(auth.oauth2 || {}) : { ...(auth[auth.type] || {}) };
   return { type: auth.type, [auth.type]: Object.entries(params).map(([key, value]) => ({ key, value, type: 'string' })) };
 }
 
