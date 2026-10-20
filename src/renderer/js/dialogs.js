@@ -235,7 +235,7 @@
           h('div.setting-row', h('div', h('div.setting-label', 'Clear history')), HD.button('Clear', async () => { if (await HD.confirm('Clear history', 'Delete all history entries?', { danger: true, okLabel: 'Clear' })) { S.ws.history = []; HD.save(); HD.emit('history'); } }, { small: true, danger: true })),
           h('div.setting-row', h('div', h('div.setting-label', 'Data folder'), h('div.setting-help.mono', info.dataDir))));
       } else {
-        panel.append(h('div.about', h('div.about-name', 'HttpDash'), h('div', `Version ${info.version}`), h('div.muted', 'A Postman-style API client built with Electron.')));
+        panel.append(h('div.about', h('div.about-name', 'HttpDash'), h('div', `Version ${info.version}`), h('div.muted', 'A free, open-source API client. MIT License.')));
       }
       body.append(nav, panel);
     };

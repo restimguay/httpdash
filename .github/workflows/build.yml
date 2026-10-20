@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -65,6 +65,10 @@ jobs:
           if [ -z "$WIN_CSC_LINK" ]; then unset WIN_CSC_LINK WIN_CSC_KEY_PASSWORD; fi
           npm run dist:win
 
+      - name: Build Linux (AppImage + deb, x64 and ARM64)
+        if: runner.os == 'Linux'
+        run: npm run dist:linux
+
       - uses: actions/upload-artifact@v4
         with:
           name: HttpDash-${{ runner.os }}
@@ -72,6 +76,8 @@ jobs:
             dist/*.dmg
             dist/*.zip
             dist/*.exe
+            dist/*.AppImage
+            dist/*.deb
           if-no-files-found: error
 
   release:

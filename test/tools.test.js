@@ -73,6 +73,12 @@ test('CLI exits 1 on a failing test, writes a JUnit failure, and honours --env-v
   assert.match(fs.readFileSync(path.join(dir, 'j.xml'), 'utf8'), /<failure message="expected response to have status code 200 but got 201"/);
 });
 
+test('CLI --version prints the package version', async () => {
+  const c = capture();
+  assert.strictEqual(await cli(['--version'], c.io), 0);
+  assert.deepStrictEqual(c.lines, [require('../package.json').version]);
+});
+
 test('CLI usage errors exit 2 with a helpful message', async () => {
   const dir = tmp();
   const { ws } = fixtureWorkspace();

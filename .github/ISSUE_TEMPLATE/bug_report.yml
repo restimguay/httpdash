@@ -1,0 +1,52 @@
+name: Bug report
+description: Something in HttpDash doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For security problems, please follow [SECURITY.md](https://github.com/restimguay/httpdash/blob/main/SECURITY.md) instead of opening an issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Steps, or a cURL command, Postman collection or HttpDash backup that shows the problem. **Remove tokens and passwords first** (Export → tick "Leave out secrets").
+      placeholder: |
+        1. Import the attached collection
+        2. Send "Login"
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: HttpDash version
+      description: Shown in Settings → About, or run `httpdash --version`.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS (Apple Silicon), macOS (Intel), Windows x64, Windows ARM64, Linux x64, Linux ARM64]
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen?
+      options: [Desktop app, Command-line runner, Both]
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output or screenshots
+      description: Anything from the Console panel (View → Toggle Console) or the terminal.
+      render: text

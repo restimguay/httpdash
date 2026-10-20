@@ -1,2 +1,13 @@
 node_modules/
 dist/
+
+# Local hosting notes and keys: never commit
+.env
+.env.*
+.ssh
+.pubkey
+.webhost
+*.pem
+id_rsa*
+id_ed25519*
+.DS_Store
