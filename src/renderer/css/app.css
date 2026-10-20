@@ -710,3 +710,30 @@ body.is-locked > :not(.lock-screen):not(#toasts) { visibility: hidden; }
 .audit-list .table-wrap { padding-top: 0; }
 .data-table tr.audit-fail td { background: var(--err-soft); }
 .nowrap { white-space: nowrap; }
+
+/* ---- Team sync ---- */
+.team-badge { display: inline-flex; color: var(--accent); flex: none; }
+.team-badge .icon { width: 13px; height: 13px; }
+.team-view { display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+.team-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.team-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.team-row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.team-token { display: flex; flex-direction: column; gap: 10px; }
+.team-token-actions, .team-conflict-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.team-help { display: flex; flex-direction: column; gap: 4px; line-height: 1.5; }
+.team-items { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 8px; }
+.team-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+.team-item .icon { width: 14px; height: 14px; color: var(--text-2); flex: none; }
+.team-status { padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
+.team-status.ok { border-left: 3px solid var(--ok); }
+.team-status.fail { border-left: 3px solid var(--err); }
+.team-conflict { padding: 10px 12px; border-radius: var(--radius); background: var(--warn-soft); border: 1px solid var(--warn); display: flex; flex-direction: column; gap: 8px; }
+.team-conflict ul { margin: 0; padding-left: 18px; }
+.team-log { display: flex; flex-direction: column; gap: 2px; }
+.team-commit { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.team-commit-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-secrets { display: flex; flex-direction: column; gap: 10px; }
+.team-secrets .secret-list { max-height: 300px; overflow: auto; }
+@media (max-width: 900px) {
+  .team-grid, .team-row2 { grid-template-columns: minmax(0, 1fr); }
+}

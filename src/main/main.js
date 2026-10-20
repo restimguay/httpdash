@@ -134,6 +134,9 @@ function buildMenu() {
         { label: 'Monitors', click: send('monitors') },
         { label: 'Scan for Secrets', click: send('secrets') },
         { label: 'Audit Log', click: send('audit') },
+        { type: 'separator' },
+        { label: 'Team Repositories', click: send('team') },
+        { label: 'Sync with Team', click: send('team-sync') },
       ],
     },
     { role: 'windowMenu' },
@@ -366,6 +369,73 @@ handle('audit:export', async () => {
   audit.append('audit.export', { path: r.filePath });
   return r.filePath;
 });
+
+// ---- Team sync through a git repository --------------------------------------------------
+// Clones live in <data>/team/<repoId>; access tokens are kept apart from the workspace, encrypted.
+const { TeamRepo, sync: teamSync, finishConflicts } = require('../core/gitsync');
+const repoFormat = require('../core/repo-format');
+const teamDir = path.join(dataDir, 'team');
+const teamTokens = new JsonStore(path.join(dataDir, 'team-tokens.json'), () => ({}));
+const teamQueues = new Map(); // repoId -> promise, so operations on one repo never overlap
+const queued = (repoId, fn) => {
+  const run = (teamQueues.get(repoId) || Promise.resolve()).catch(() => {}).then(fn);
+  teamQueues.set(repoId, run);
+  return run;
+};
+const safeId = (id) => String(id || '').replace(/[^\w-]/g, '');
+let gitIdentity;
+// Commits use the person's own git identity; without one, their computer user name.
+const identity = async () => {
+  if (gitIdentity) return gitIdentity;
+  const probe = new TeamRepo({ dir: os.tmpdir() });
+  const name = (await probe.git(['config', '--get', 'user.name'], { cwd: os.tmpdir(), allowFail: true })).stdout.trim();
+  gitIdentity = name ? {} : { userName: appLock.status().lastUser || (() => { try { return os.userInfo().username; } catch { return 'HttpDash user'; } })() };
+  return gitIdentity;
+};
+const teamRepo = async (cfg) => {
+  const id = safeId(cfg.id);
+  if (!id || !cfg.url) throw new Error('The team repository needs a URL.');
+  const stored = teamTokens.load()[id];
+  return new TeamRepo({
+    dir: path.join(teamDir, id), url: cfg.url, branch: cfg.branch || 'main', subdir: cfg.subdir,
+    token: cfg.auth === 'token' && stored ? keychain.decrypt(stored.token) : '', username: (stored && stored.username) || 'oauth2',
+    ...(await identity()),
+  });
+};
+const teamAudited = (event, cfg, fn) => audited(event, { repo: safeTarget(cfg.url), branch: cfg.branch || 'main' }, fn);
+
+handle('team:gitVersion', async () => {
+  try { return { ok: true, version: await TeamRepo.version() }; } catch (e) { return { ok: false, error: e.message }; }
+});
+handle('team:setToken', ({ repoId, token, username }) => {
+  const all = teamTokens.load();
+  if (token) all[safeId(repoId)] = { token: keychain.encrypt(token), username: username || 'oauth2' };
+  else delete all[safeId(repoId)];
+  teamTokens.save(all);
+  return true;
+});
+handle('team:tokenInfo', (repoId) => {
+  const t = teamTokens.load()[safeId(repoId)];
+  return t ? { saved: true, username: t.username } : { saved: false };
+});
+handle('team:sync', ({ repo, state, message, pullOnly }) => queued(repo.id, () => teamAudited(pullOnly ? 'team.pull' : 'team.sync', repo, async () => teamSync(await teamRepo(repo), state, { message, pullOnly }))));
+handle('team:resolve', ({ repo, side, pullOnly }) => queued(repo.id, () => teamAudited('team.resolve', repo, async () => finishConflicts(await teamRepo(repo), side, { pullOnly }))));
+handle('team:apply', ({ local, team, repoId, keepMissing }) => repoFormat.applyRepo(local, team, repoId, { keepMissing }));
+handle('team:scan', (state) => scanWorkspace({ ...repoFormat.shareable(state), globals: [] }));
+handle('team:abort', (repo) => queued(repo.id, async () => { await (await teamRepo(repo)).abortMerge(); return true; }));
+handle('team:log', (repo) => queued(repo.id, async () => {
+  const r = await teamRepo(repo);
+  if (!fs.existsSync(path.join(r.dir, '.git'))) return [];
+  return r.log(30);
+}));
+handle('team:remove', (repoId) => queued(repoId, () => {
+  const all = teamTokens.load();
+  delete all[safeId(repoId)];
+  teamTokens.save(all);
+  if (safeId(repoId)) fs.rmSync(path.join(teamDir, safeId(repoId)), { recursive: true, force: true });
+  audit.append('team.remove', { repoId: safeId(repoId) });
+  return true;
+}));
 
 handle('cookies:list', () => jar);
 handle('cookies:delete', ({ name, domain, path: p }) => {

@@ -80,6 +80,7 @@
     if (t.kind === 'monitor') { const m = HD.monitors().find((x) => x.id === t.refId); return m ? m.name : 'Deleted'; }
     if (t.kind === 'secrets') return 'Secret scan';
     if (t.kind === 'audit') return 'Audit log';
+    if (t.kind === 'team') { const r = HD.teamRepos().find((x) => x.id === t.refId); return r ? r.name : 'Disconnected'; }
     if (t.kind === 'discovery') { const d = HD.discoverySources().find((x) => x.id === t.refId); return d ? d.name : 'Deleted'; }
     return 'Tab';
   };
@@ -152,7 +153,7 @@
     for (const t of S.ws.tabs) {
       const icon = t.kind === 'request'
         ? h(`span.method-tag.${HD.methodClass(t.draft.request.method)}`, t.draft.request.method.slice(0, 6))
-        : HD.icon({ collection: 'layers', folder: 'folder', environment: 'globe', globals: 'globe', runner: 'play', discovery: 'search', monitor: 'pulse', secrets: 'shield', audit: 'history' }[t.kind] || 'file');
+        : HD.icon({ collection: 'layers', folder: 'folder', environment: 'globe', globals: 'globe', runner: 'play', discovery: 'search', monitor: 'pulse', secrets: 'shield', audit: 'history', team: 'users' }[t.kind] || 'file');
       const el = h('div.tab', {
         class: [t.id === S.ws.activeTabId && 'active', t.dirty && 'dirty', S.sending.get(t.id) && 'sending'].filter(Boolean).join(' '),
         title: t.kind === 'request' ? `${tabTitle(t)}\n${t.draft.request.url}` : tabTitle(t),
@@ -336,6 +337,8 @@
     secrets: () => HD.openSecretScan(),
     audit: () => HD.openAuditLog(),
     monitors: () => { S.ws.ui.sidebarTab = 'monitors'; HD.save(); HD.renderSidebar(); },
+    team: () => { S.ws.ui.sidebarTab = 'team'; HD.save(); HD.renderSidebar(); if (!HD.teamRepos().length) HD.newTeamRepo(); },
+    'team-sync': () => HD.teamRepos().forEach((r) => HD.teamSync(r)),
   };
   HD.command = (name) => commands[name] && commands[name]();
   // Keyboard shortcuts are handled here; the application menu only displays them.
