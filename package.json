@@ -1,0 +1,19 @@
+{
+  "name": "httpdash",
+  "version": "1.0.0",
+  "description": "HttpDash - a Postman-like API client built with Electron",
+  "main": "src/main/main.js",
+  "author": "restimguay",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "chai": "4.5.0",
+    "codemirror": "5.65.21"
+  },
+  "devDependencies": {
+    "electron": "43.7.8"
+  }
+}
