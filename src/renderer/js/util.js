@@ -79,6 +79,7 @@ HD.icon = (name) => {
     stop: 'M6 6h12v12H6z',
     file: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6',
     wrap: 'M3 6h18M3 12h15a3 3 0 1 1 0 6h-4M3 18h7M14 15l-3 3 3 3',
+    lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
   };
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');

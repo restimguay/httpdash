@@ -27,10 +27,12 @@
     try {
       await window.api.saveWorkspace(S.ws);
     } catch (e) {
-      HD.toast(`Could not save workspace: ${e.message}`, 'error');
+      if (!/locked/i.test(e.message)) HD.toast(`Could not save workspace: ${e.message}`, 'error');
     }
   }, 400);
   HD.save = () => persist();
+  // Saves immediately (used before locking).
+  HD.saveNow = () => window.api.saveWorkspace(S.ws);
 
   HD.load = async () => {
     S.ws = await window.api.loadWorkspace();

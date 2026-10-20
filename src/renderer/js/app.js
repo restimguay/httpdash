@@ -240,6 +240,7 @@
       HD.button('Runner', () => HD.openRunner(), { icon: 'play', small: true, ghost: true }),
       h('span.spacer'),
       h('div#env-select'),
+      h('div#lock-button'),
       HD.button('', () => HD.showCookies(), { icon: 'cookie', ghost: true, title: 'Cookies' }),
       HD.button('', () => HD.showSettings(), { icon: 'gear', ghost: true, title: 'Settings' }));
     HD.renderEnvSelect();
@@ -328,20 +329,22 @@
     runner: () => HD.openRunner(),
     cookies: () => HD.showCookies(),
     codegen: () => HD.showCodegen(HD.currentTab()),
+    lock: () => HD.lockNow(),
   };
   HD.command = (name) => commands[name] && commands[name]();
   // Keyboard shortcuts are handled here; the application menu only displays them.
-  const SHORTCUTS = { t: 'new-request', o: 'import', s: 'save', w: 'close-tab', ',': 'settings', '\\': 'toggle-sidebar', Enter: 'send' };
+  const SHORTCUTS = { t: 'new-request', o: 'import', s: 'save', w: 'close-tab', ',': 'settings', '\\': 'toggle-sidebar', Enter: 'send', l: 'lock' };
   document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey) || e.shiftKey) return;
     let cmd = e.altKey ? (e.key.toLowerCase() === 'c' || e.code === 'KeyC' ? 'toggle-console' : null) : SHORTCUTS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
     if (!cmd) return;
-    if (document.querySelector('.modal-overlay')) return;
+    if (document.querySelector('.modal-overlay') || document.body.classList.contains('is-locked')) return;
     e.preventDefault();
     HD.command(cmd);
   });
   window.api.onMenu((cmd) => {
     // Don't fire app shortcuts while a modal dialog is open.
+    if (document.body.classList.contains('is-locked')) return;
     if (document.querySelector('.modal-overlay') && cmd !== 'close-tab') return;
     HD.command(cmd);
   });
@@ -349,6 +352,13 @@
   // ---- Boot ---------------------------------------------------------------------------------
 
   const boot = async () => {
+    // With the app lock on, nothing is loaded until an LDAP sign-in succeeds.
+    const lockStatus = await window.api.lock.status();
+    HD.lockState = lockStatus;
+    if (lockStatus.locked) {
+      HD.showLockScreen(lockStatus);
+      return;
+    }
     await HD.load();
     HD.applyTheme();
     // Clean up tabs that refer to things that no longer exist.
@@ -375,7 +385,16 @@
       const t = HD.currentTab();
       if (t && ['environment', 'globals', 'collection'].includes(t.kind)) HD.renderActiveTab();
     });
-    window.addEventListener('beforeunload', () => window.api.saveWorkspace(S.ws));
+    window.addEventListener('beforeunload', () => { window.api.saveWorkspace(S.ws).catch(() => {}); });
+    HD.renderTopbarLock();
+    HD.startIdleLock();
+    try {
+      if (sessionStorage.getItem('hd-recovered')) {
+        sessionStorage.removeItem('hd-recovered');
+        HD.toast('Unlocked with the recovery code. The lock is now off; fix the LDAP settings and turn it on again.', 'warn', 9000);
+        HD.showSettings('security');
+      }
+    } catch { /* storage unavailable */ }
     HD.syncDiscoveryOnStartup();
   };
   boot().catch((e) => {

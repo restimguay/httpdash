@@ -43,5 +43,17 @@ contextBridge.exposeInMainWorld('api', {
   getOAuth2Token: invoke('oauth2:getToken'),
   syncDiscovery: invoke('discovery:sync'),
   openExternal: invoke('shell:openExternal'),
+  lock: {
+    status: invoke('lock:status'),
+    getConfig: invoke('lock:getConfig'),
+    setConfig: invoke('lock:setConfig'),
+    test: invoke('lock:test'),
+    enable: invoke('lock:enable'),
+    update: invoke('lock:update'),
+    lock: invoke('lock:lock'),
+    unlock: invoke('lock:unlock'),
+    recover: invoke('lock:recover'),
+    disable: invoke('lock:disable'),
+  },
   onMenu: (fn) => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
 });

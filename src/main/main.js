@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { JsonStore } = require('./store');
@@ -21,6 +21,18 @@ const dataDir = process.env.HTTPDASH_DATA_DIR || app.getPath('userData');
 const workspaceStore = new JsonStore(path.join(dataDir, 'workspace.json'), seedWorkspace);
 const cookieStore = new JsonStore(path.join(dataDir, 'cookies.json'), () => ({ cookies: [] }));
 let jar = cookieStore.load().cookies;
+
+// App lock (LDAP sign-in). The service-account password is encrypted with the OS keychain when available.
+const { AppLock } = require('../core/app-lock');
+const keychain = {
+  encrypt: (s) => (safeStorage.isEncryptionAvailable() ? `enc:${safeStorage.encryptString(s).toString('base64')}` : `b64:${Buffer.from(s).toString('base64')}`),
+  decrypt: (s) => {
+    const [kind, data] = [String(s).slice(0, 4), String(s).slice(4)];
+    if (kind === 'enc:') return safeStorage.decryptString(Buffer.from(data, 'base64'));
+    return Buffer.from(kind === 'b64:' ? data : String(s), 'base64').toString('utf8');
+  },
+};
+const appLock = new AppLock({ file: path.join(dataDir, 'security.json'), secret: keychain });
 const saveJar = () => cookieStore.save({ cookies: jar });
 
 let win;
@@ -48,7 +60,10 @@ function createWindow() {
     if (/^https?:/.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
-  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  // Block navigation away from the app; only reloading the app's own page is allowed (used by the lock).
+  win.webContents.on('will-navigate', (e, url) => {
+    if (url !== win.webContents.getURL()) e.preventDefault();
+  });
 }
 
 function buildMenu() {
@@ -74,6 +89,7 @@ function buildMenu() {
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', registerAccelerator: false, click: send('close-tab') },
         { type: 'separator' },
         { label: 'Settings', accelerator: 'CmdOrCtrl+,', registerAccelerator: false, click: send('settings') },
+        { label: 'Lock HttpDash', accelerator: 'CmdOrCtrl+L', registerAccelerator: false, click: send('lock') },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' },
       ],
@@ -105,7 +121,24 @@ function buildMenu() {
 
 // ---- IPC ----------------------------------------------------------------------------------
 
-const handle = (channel, fn) => ipcMain.handle(channel, async (_e, ...args) => fn(...args));
+// While HttpDash is locked, only the lock screen's channels answer; everything else is refused,
+// so no workspace data reaches the window until an LDAP sign-in succeeds.
+const OPEN_WHILE_LOCKED = new Set(['lock:status', 'lock:unlock', 'lock:recover', 'app:info']);
+const handle = (channel, fn) => ipcMain.handle(channel, async (_e, ...args) => {
+  if (appLock.isLocked() && !OPEN_WHILE_LOCKED.has(channel)) throw new Error('HttpDash is locked');
+  return fn(...args);
+});
+
+handle('lock:status', () => appLock.status());
+handle('lock:getConfig', () => appLock.publicConfig());
+handle('lock:setConfig', (cfg) => appLock.setConfig(cfg));
+handle('lock:test', ({ username, password }) => appLock.test(username, password));
+handle('lock:enable', (opts) => appLock.enable(opts));
+handle('lock:update', (opts) => appLock.updateLock(opts));
+handle('lock:lock', () => appLock.lock());
+handle('lock:unlock', ({ username, password }) => appLock.unlock(username, password));
+handle('lock:recover', (code) => appLock.recover(code));
+handle('lock:disable', ({ username, password }) => appLock.disable(username, password));
 
 handle('workspace:load', () => workspaceStore.load());
 handle('workspace:save', (data) => { workspaceStore.save(data); return true; });

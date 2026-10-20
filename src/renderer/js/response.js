@@ -136,6 +136,10 @@
     root.appendChild(h('div.res-header', strip, res ? statusLine(res, actions) : null));
     const banner = HD.dependencyBanner && HD.dependencyBanner(result.dependencyRuns);
     if (banner) root.appendChild(banner);
+    if (result.savedVariables && result.savedVariables.length) {
+      root.appendChild(h('div.dep-banner', h('div.dep-run', HD.icon('check'),
+        h('span', `Saved ${result.savedVariables.map((k) => `{{${k}}}`).join(', ')} for the requests that depend on this one`))));
+    }
     root.appendChild(content);
 
     if (active === 'body') {

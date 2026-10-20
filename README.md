@@ -36,6 +36,35 @@ To sign (and notarize on Mac), add these repository secrets; the workflow picks 
 - macOS: `MAC_CSC_LINK` (base64 .p12), `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
 - Windows: `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`
 
+## App lock with LDAP sign-in
+
+HttpDash can require a directory (LDAP) sign-in before it opens. Set it up in **Settings → Security**:
+
+1. **LDAP server:**
+   - Enter the server address: `ldap://…:389` or `ldaps://…:636`, with optional StartTLS and certificate verification.
+   - Choose how to find the user. Either a DN template such as `uid={username},ou=people,dc=example,dc=com`, or search then bind: a service account searches a base with a filter such as `(uid={username})`. Use the second when users live in different branches.
+   - Optionally require membership of a group. HttpDash checks `member`, `uniqueMember` and `memberUid`.
+2. **Test a sign-in** with your own account.
+3. **Turn the lock on**, which is only possible after a successful test of the current settings:
+   - Choose which users may unlock.
+   - Optionally lock after N minutes of inactivity.
+   - Save the one-time **recovery code**.
+
+Once on, HttpDash starts locked. You can lock it any time with the lock button in the top bar or **Ctrl/Cmd+L**.
+
+- **What locked means:** the main process refuses to hand any workspace data to the window until a sign-in succeeds, so nothing is in the window to read.
+- **Recovery code:** if the LDAP server is unreachable, the code unlocks HttpDash and turns the lock off, so you can fix the settings.
+- **Changing settings:** with the lock on, the LDAP settings are read-only. Turning the lock off requires signing in again.
+- **Safety measures:**
+  - Empty passwords are refused, because many LDAP servers treat them as an anonymous bind that "succeeds".
+  - Usernames are escaped before they go into LDAP filters and DNs.
+  - Repeated failures are slowed down.
+  - The service-account password is encrypted with the OS keychain.
+  - Lock settings live in their own `security.json`, which backups never include.
+- **Limitation:** the lock protects the app; it does not encrypt your data files on disk.
+
+![Lock screen](docs/screenshots/22-lock-screen.png)
+
 ## Import and export everything
 
 **Export** (top bar) offers two formats:
