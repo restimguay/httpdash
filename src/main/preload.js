@@ -22,7 +22,8 @@ contextBridge.exposeInMainWorld('api', {
   exportEnvironment: invoke('export:environment'),
   exportGlobals: invoke('export:globals'),
   exportJson: invoke('export:json'),
-  exportWorkspace: invoke('export:workspace'),
+  exportAll: invoke('export:all'),
+  restoreBackup: invoke('backup:restore'),
   saveResponse: invoke('response:save'),
   openFile: invoke('dialog:openFile'),
 

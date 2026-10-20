@@ -36,6 +36,20 @@ To sign (and notarize on Mac), add these repository secrets; the workflow picks 
 - macOS: `MAC_CSC_LINK` (base64 .p12), `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
 - Windows: `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`
 
+## Import and export everything
+
+**Export** (top bar) offers two formats:
+- **HttpDash backup:** one `.json` file with everything: collections, environments, globals, history, service discovery sources, settings and cookies.
+- **Postman format:** a folder with one `.postman_collection.json` per collection, one `.postman_environment.json` per environment, and a globals file, ready for Postman or teammates. Auth dependencies and discovery sources are HttpDash-only, so they are not in these files.
+
+Tick **Leave out secrets** before sharing an export. This empties secret variables and the variables holding auth-dependency tokens, removes credentials typed into auth fields (references like `{{token}}` are kept), and drops discovery tokens, the proxy password and cookies. Without it, the file contains your credentials.
+
+**Import** accepts all of these, and several files can be selected at once (for example a whole Postman export folder). For a backup, you choose:
+- **Merge:** adds everything; items that already exist are added as copies marked "(imported)", and existing global keys are kept.
+- **Replace:** swaps your current workspace for the backup. It asks for confirmation first.
+
+![Export all](docs/screenshots/17-export-all.png)
+
 ## Auth dependencies (auto-refresh tokens)
 
 A collection, folder or request can name another request, such as **Login**, to run first when the token it needs is missing or expired. Set it up in the **Authorization** tab under **Auth dependency**:
@@ -132,8 +146,8 @@ Some of these are set automatically if you don't set them (User-Agent, Accept, A
 - Optionally persists variable changes made during the run
 
 **Import / export & tools**
-- Import Postman collections (v2.0 / v2.1), Postman environments and globals, OpenAPI 3 / Swagger 2 (JSON) and cURL; drag files onto the window to import
-- Export collections (Postman v2.1), environments and globals in Postman format
+- Import HttpDash backups, Postman collections (v2.0 / v2.1), environments and globals, OpenAPI 3 / Swagger 2 (JSON) and cURL; drag files onto the window to import
+- Export everything as a restorable backup or as Postman files, or export single collections, environments and globals
 - Code generation: cURL, raw HTTP, JavaScript fetch, Node.js Axios, Python requests, Go, PHP cURL, C# HttpClient, Java OkHttp, PowerShell, wget
 - Cookie manager (view / add / edit / delete per domain)
 - Settings: timeout, redirects, SSL verification, HTTP proxy (including HTTPS via CONNECT, with auth and bypass list), user agent, response size limit, light / dark / system theme, editor font size, stacked or side-by-side layout

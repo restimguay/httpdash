@@ -236,6 +236,7 @@
         { label: 'Environment', onClick: async () => { const n = await HD.prompt('New environment', 'Name', 'New Environment'); if (n) { const env = HD.newEnvironment(n); S.ws.environments.push(env); HD.save(); HD.renderEnvSelect(); S.ws.ui.sidebarTab = 'environments'; HD.renderSidebar(); HD.openEnvironment(env.id); } } },
       ]), { icon: 'plus', small: true }),
       HD.button('Import', () => HD.showImport(), { icon: 'download', small: true }),
+      HD.button('Export', () => HD.showExportAll(), { icon: 'upload', small: true }),
       HD.button('Runner', () => HD.openRunner(), { icon: 'play', small: true, ghost: true }),
       h('span.spacer'),
       h('div#env-select'),
