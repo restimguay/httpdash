@@ -212,6 +212,8 @@ function importOpenApi(doc) {
 
 /** Detects the type of an imported JSON document and converts it. */
 function importAny(json) {
+  const backup = require('./backup');
+  if (backup.isBackup(json)) return { kind: 'backup', data: json, summary: backup.summarize(json.workspace) };
   if (json.info && Array.isArray(json.item)) return { kind: 'collection', data: importPostmanCollection(json) };
   if ((json.openapi || json.swagger) && json.paths) return { kind: 'collection', data: importOpenApi(json) };
   if (Array.isArray(json.values) && (json._postman_variable_scope === 'environment' || json.name !== undefined)) {
@@ -219,7 +221,7 @@ function importAny(json) {
     return { kind: 'environment', data: importPostmanEnvironment(json) };
   }
   if (json.type === 'collection' && Array.isArray(json.items)) return { kind: 'collection', data: reId(json) };
-  throw new Error('Unrecognised file format. Supported: Postman collection v2/v2.1, Postman environment, OpenAPI 3 / Swagger 2 (JSON).');
+  throw new Error('Unrecognised file format. Supported: HttpDash backup, Postman collection v2/v2.1, Postman environment / globals, OpenAPI 3 / Swagger 2 (JSON).');
 }
 
 // Gives every node of a native collection fresh ids so re-importing never collides.

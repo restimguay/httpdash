@@ -12,6 +12,7 @@ const postman = require('../core/postman');
 const runner = require('../core/runner');
 const { makeLookup } = require('../core/dependency');
 const discovery = require('../core/discovery');
+const backup = require('../core/backup');
 const { resolve: resolveVars } = require('../core/variables');
 const httpClient = require('../core/http-client');
 const { seedWorkspace } = require('./seed');
@@ -164,7 +165,44 @@ handle('export:collection', (col) => saveJson(`${safeName(col.name)}.postman_col
 handle('export:environment', (env) => saveJson(`${safeName(env.name)}.postman_environment.json`, postman.exportEnvironment(env)));
 handle('export:globals', (values) => saveJson('globals.postman_globals.json', { ...postman.exportEnvironment({ id: 'globals', name: 'Globals', values }), _postman_variable_scope: 'globals' }));
 handle('export:json', ({ name, data }) => saveJson(name, data));
-handle('export:workspace', () => saveJson('httpdash-workspace.json', workspaceStore.load()));
+// Export everything: a restorable HttpDash backup, or a folder of Postman collection/environment files.
+handle('export:all', async ({ workspace, format, excludeSecrets }) => {
+  const date = new Date().toISOString().slice(0, 10);
+  if (format === 'backup') {
+    const data = backup.makeBackup(workspace, jar, { excludeSecrets, appVersion: app.getVersion() });
+    const file = await saveJson(`httpdash-backup-${date}.json`, data);
+    return file ? { path: file, files: 1 } : null;
+  }
+  const r = await dialog.showOpenDialog(win, { title: 'Choose a folder for the Postman files', properties: ['openDirectory', 'createDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const ws = JSON.parse(JSON.stringify(workspace));
+  if (excludeSecrets) backup.stripSecrets(ws);
+  const dir = path.join(r.filePaths[0], `httpdash-export-${date}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const used = new Set();
+  const write = (base, data) => {
+    let name = `${base}.json`;
+    for (let i = 2; used.has(name.toLowerCase()); i++) name = base.replace(/(\.postman_\w+)$/, `-${i}$1`) + '.json';
+    used.add(name.toLowerCase());
+    fs.writeFileSync(path.join(dir, name), JSON.stringify(data, null, 2));
+  };
+  for (const col of ws.collections || []) write(`${safeName(col.name)}.postman_collection`, postman.exportCollection(col));
+  for (const env of ws.environments || []) write(`${safeName(env.name)}.postman_environment`, postman.exportEnvironment(env));
+  if ((ws.globals || []).some((g) => g.key)) {
+    write('globals.postman_globals', { ...postman.exportEnvironment({ id: 'globals', name: 'Globals', values: ws.globals }), _postman_variable_scope: 'globals' });
+  }
+  return { path: dir, files: used.size };
+});
+
+handle('backup:restore', ({ current, data, mode }) => {
+  const res = backup.restore(current, data, mode);
+  if (res.cookies) {
+    jar = mode === 'replace' ? res.cookies : backup.mergeCookies(jar, res.cookies);
+    saveJar();
+  }
+  delete res.cookies;
+  return res;
+});
 
 handle('response:save', async ({ name, bodyText, bodyBase64 }) => {
   const r = await dialog.showSaveDialog(win, { defaultPath: name || 'response' });

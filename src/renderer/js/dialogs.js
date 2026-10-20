@@ -51,9 +51,17 @@
     let n = 0;
     for (const it of items) {
       if (it.error) { HD.toast(`${it.file || 'Import'}: ${it.error}`, 'error', 6000); continue; }
+      if (it.kind === 'backup') { HD.importBackup(it); n++; continue; }
       if (it.kind === 'collection') { S.ws.collections.push(it.data); n++; }
       if (it.kind === 'environment') { S.ws.environments.push(it.data); n++; }
-      if (it.kind === 'globals') { S.ws.globals.push(...it.data); n++; }
+      if (it.kind === 'globals') {
+        // Update existing global keys instead of adding duplicates.
+        for (const g of it.data) {
+          const existing = S.ws.globals.find((x) => x.key === g.key);
+          if (existing) Object.assign(existing, g); else S.ws.globals.push(g);
+        }
+        n++;
+      }
       HD.toast(`Imported ${it.kind}${it.data && it.data.name ? ` "${it.data.name}"` : ''}`, 'success');
     }
     if (n) { HD.save(); HD.renderSidebar(); HD.renderEnvSelect(); }
@@ -61,7 +69,7 @@
   };
 
   HD.showImport = () => {
-    const ta = h('textarea.input.import-text', { placeholder: 'Paste a cURL command, a Postman collection / environment JSON, or an OpenAPI 3 / Swagger 2 JSON document…', spellcheck: 'false' });
+    const ta = h('textarea.input.import-text', { placeholder: 'Paste a cURL command, an HttpDash backup, a Postman collection / environment JSON, or an OpenAPI 3 / Swagger 2 JSON document…', spellcheck: 'false' });
     const m = HD.modal({
       title: 'Import',
       width: 640,
@@ -72,7 +80,7 @@
             const items = await window.api.importFiles();
             if (HD.applyImport(items)) m.close();
           }, { primary: true, icon: 'upload' }),
-          h('div.muted.small', 'Postman collections (v2.0 / v2.1), Postman environments and globals, OpenAPI 3 / Swagger 2 JSON')),
+          h('div.muted.small', 'HttpDash backups, Postman collections (v2.0 / v2.1), environments and globals, OpenAPI 3 / Swagger 2 JSON. Select several files at once to import a whole Postman export folder.')),
         h('div.or', 'or paste raw text'),
         ta),
       buttons: [
@@ -221,7 +229,7 @@
           h('div.setting-row', h('div', h('div.setting-label', 'Request / response layout')), HD.select([['vertical', 'Stacked (response below)'], ['horizontal', 'Side by side']], S.ws.ui.layout || 'vertical', (v) => { S.ws.ui.layout = v; HD.save(); HD.renderActiveTab(); })));
       } else if (section === 'data') {
         panel.append(
-          h('div.setting-row', h('div', h('div.setting-label', 'Export workspace'), h('div.setting-help', 'Save all collections, environments, globals and history to a JSON file.')), HD.button('Export', () => window.api.exportWorkspace(), { small: true })),
+          h('div.setting-row', h('div', h('div.setting-label', 'Export all'), h('div.setting-help', 'Back up everything to one file, or export all collections and environments in Postman format. Restore a backup with Import.')), HD.button('Export all…', () => HD.showExportAll(), { small: true })),
           h('div.setting-row', h('div', h('div.setting-label', 'Clear history')), HD.button('Clear', async () => { if (await HD.confirm('Clear history', 'Delete all history entries?', { danger: true, okLabel: 'Clear' })) { S.ws.history = []; HD.save(); HD.emit('history'); } }, { small: true, danger: true })),
           h('div.setting-row', h('div', h('div.setting-label', 'Data folder'), h('div.setting-help.mono', info.dataDir))));
       } else {
