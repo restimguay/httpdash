@@ -66,6 +66,8 @@ function createWindow() {
     minHeight: 600,
     title: 'HttpDash',
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e1f22' : '#ffffff',
+    // Shown on first paint, so the window opens fully drawn instead of as an empty frame.
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -73,6 +75,10 @@ function createWindow() {
       sandbox: true,
     },
   });
+  const shown = win;
+  const show = () => { if (!shown.isDestroyed() && !shown.isVisible()) shown.show(); };
+  win.once('ready-to-show', show);
+  setTimeout(show, 3000); // in case the page never paints, e.g. it failed to load
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   // Open external links in the system browser instead of inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {

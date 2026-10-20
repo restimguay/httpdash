@@ -252,6 +252,7 @@ Some of these are set automatically if you don't set them (User-Agent, Accept, A
 - Status, time and size, with a breakdown of DNS / connect / TLS / first byte
 - Pretty (JSON / XML / HTML formatting), Raw, Preview (sandboxed HTML, images) and Visualize (`pm.visualizer.set` with Handlebars-style templates)
 - Search, line wrap, copy, save to file, save as example
+- Large responses (over 2 MB by default) show their first 512 KB until you click **Show all**, so the window never freezes
 - Headers, cookies, test results with filters, and a timeline showing the request actually sent and any redirects
 
 **Scripts** (Postman-compatible `pm` API)

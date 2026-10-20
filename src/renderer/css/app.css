@@ -440,6 +440,7 @@ li.CodeMirror-hint-active .hint-scope { color: #fff; }
 .res-actions { display: flex; }
 .res-content { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
 .body-toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; flex: none; }
+.large-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 12px; border-top: 1px solid var(--border); background: var(--bg-2); font-size: 12px; color: var(--text-2); flex: none; }
 .body-area { flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--border); }
 .body-area > .CodeMirror { flex: 1; height: auto; }
 .preview-frame { flex: 1; width: 100%; border: 0; background: #fff; }

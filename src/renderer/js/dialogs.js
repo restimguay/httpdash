@@ -212,6 +212,7 @@
           toggle('sendNoCache', 'Send no-cache header', 'Adds "Cache-Control: no-cache" to requests.'),
           text('userAgent', 'User-Agent', 'Default User-Agent header.'),
           num('maxResponseBytes', 'Max response size (bytes)', 'Abort downloads larger than this. 0 means unlimited.'),
+          num('largeResponseBytes', 'Large response size (bytes)', 'Larger responses show only their first 512 KB until you click "Show all". 0 always shows everything.'),
           num('historyLimit', 'History entries to keep'));
       } else if (section === 'proxy') {
         panel.append(

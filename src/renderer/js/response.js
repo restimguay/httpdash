@@ -48,6 +48,13 @@
     return out.join('\n');
   };
 
+  // Bodies larger than the "large response" setting show only their start until the user asks for
+  // all of it: loading megabytes into the editor freezes the window.
+  const DEFAULT_LARGE_BYTES = 2 * 1024 * 1024;
+  const PREVIEW_CHARS = 512 * 1024;
+  const showAll = new WeakSet(); // responses the user chose to show in full
+  const prettyCache = new WeakMap(); // response -> { lang, text }, so switching tabs doesn't re-format
+
   const pretty = (text, lang) => {
     if (lang === 'json') {
       try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
@@ -55,6 +62,13 @@
     if (lang === 'xml' || lang === 'html') {
       try { return text.length < 2e6 ? HD.formatXml(text) : text; } catch { return text; }
     }
+    return text;
+  };
+  const prettyFor = (res, lang) => {
+    const hit = prettyCache.get(res);
+    if (hit && hit.lang === lang) return hit.text;
+    const text = pretty(res.bodyText, lang);
+    prettyCache.set(res, { lang, text });
     return text;
   };
 
@@ -189,10 +203,20 @@
       view !== 'preview' && view !== 'visualize' ? HD.button('', () => { const cm = content.querySelector('.CodeMirror'); if (cm) { cm.CodeMirror.focus(); cm.CodeMirror.execCommand('findPersistent'); } }, { icon: 'search', ghost: true, small: true, title: 'Search (Ctrl+F)' }) : null,
       HD.button('', () => HD.copy(res.bodyText || ''), { icon: 'copy', ghost: true, small: true, title: 'Copy body' }));
     content.appendChild(toolbar);
+    const limit = HD.S.ws.settings.largeResponseBytes == null ? DEFAULT_LARGE_BYTES : HD.S.ws.settings.largeResponseBytes;
+    const large = res.bodyText != null && limit > 0 && res.bodyText.length > limit;
+    const partial = large && !showAll.has(res) && !(isImage && view === 'preview') && view !== 'visualize';
+    if (partial) {
+      content.appendChild(h('div.large-banner',
+        h('span', `Large response (${HD.formatBytes(res.bodySize)}). Showing the first ${HD.formatBytes(PREVIEW_CHARS)} to keep HttpDash responsive.`),
+        h('span.spacer'),
+        HD.button('Show all', () => { showAll.add(res); rerender(); }, { small: true }),
+        HD.button('Save to file', () => window.api.saveResponse({ name: suggestName(res), bodyText: res.bodyText, bodyBase64: res.bodyBase64 }), { small: true, ghost: true })));
+    }
     const area = h('div.body-area');
     content.appendChild(area);
 
-    if (view === 'preview') {
+    if (view === 'preview' && !partial) {
       if (isImage && res.bodyBase64) {
         area.appendChild(h('div.image-preview', h('img', { src: `data:${res.contentType.split(';')[0]};base64,${res.bodyBase64}`, alt: 'Response image' })));
       } else if (res.bodyText != null) {
@@ -215,8 +239,10 @@
       area.appendChild(h('div.empty-state.small', `Binary response (${res.contentType || 'unknown type'}, ${HD.formatBytes(res.bodySize)}).`));
       return;
     }
-    const text = view === 'pretty' ? pretty(res.bodyText, langOverride) : res.bodyText;
-    HD.editor(area, { value: text, mode: view === 'pretty' ? langOverride : 'text', readOnly: true, wrap: !!ui.wrap });
+    const full = view === 'pretty' ? prettyFor(res, langOverride) : res.bodyText;
+    const text = partial ? `${full.slice(0, PREVIEW_CHARS)}\n…` : full;
+    // Highlighting and code folding are what make huge documents slow, so they're off for large ones.
+    HD.editor(area, { value: text, mode: view === 'pretty' && !large ? langOverride : 'text', readOnly: true, wrap: !!ui.wrap, plain: large });
   }
 
   function renderTests(content, result, ui, rerender) {
