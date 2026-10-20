@@ -190,6 +190,7 @@
     const root = h('div.kv');
     let bulkMode = false;
     const changed = () => opts.onChange && opts.onChange();
+    const listId = opts.keySuggestions ? `kv-list-${HD.uid()}` : null;
 
     const render = (focus) => {
       HD.clear(root);
@@ -243,6 +244,7 @@
           value: row[field] || '',
           placeholder,
           type,
+          list: field === 'key' && opts.keySuggestions ? listId : null,
           spellcheck: 'false',
           dataset: { field },
           oninput: (e) => {
@@ -302,6 +304,7 @@
           }, HD.icon('trash'))));
       };
 
+      if (listId) root.appendChild(h(`datalist#${listId}`, opts.keySuggestions.map((k) => h('option', { value: k }))));
       rows.forEach((r) => table.appendChild(makeRow(r, false)));
       if (!opts.readOnly) table.appendChild(makeRow({ key: '', value: '', enabled: true, ...(opts.formdata ? { type: 'text' } : {}) }, true));
       root.appendChild(table);

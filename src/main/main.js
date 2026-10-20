@@ -48,7 +48,13 @@ function createWindow() {
 }
 
 function buildMenu() {
-  const send = (cmd) => () => win && win.webContents.send('menu', cmd);
+  const send = (cmd) => () => {
+    // On macOS the app keeps running with no window; reopen one before dispatching.
+    if (!win || win.isDestroyed()) {
+      createWindow();
+      win.webContents.once('did-finish-load', () => win.webContents.send('menu', cmd));
+    } else win.webContents.send('menu', cmd);
+  };
   const isMac = process.platform === 'darwin';
   const template = [
     ...(isMac ? [{ role: 'appMenu' }] : []),

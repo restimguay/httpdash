@@ -13,6 +13,13 @@
   ];
   HD.AUTH_TYPES = AUTH_TYPES;
 
+  // Suggested header names. Any header can be set, including ones browsers forbid (Referer, Origin, Host, Cookie).
+  const COMMON_HEADERS = ['Accept', 'Accept-Charset', 'Accept-Encoding', 'Accept-Language', 'Authorization', 'Cache-Control', 'Connection',
+    'Content-Disposition', 'Content-Encoding', 'Content-Language', 'Content-Type', 'Cookie', 'DNT', 'Forwarded', 'Host', 'If-Match',
+    'If-Modified-Since', 'If-None-Match', 'Origin', 'Pragma', 'Range', 'Referer', 'Sec-Fetch-Dest', 'Sec-Fetch-Mode', 'Sec-Fetch-Site',
+    'TE', 'Upgrade-Insecure-Requests', 'User-Agent', 'X-API-Key', 'X-Correlation-ID', 'X-CSRF-Token', 'X-Forwarded-For',
+    'X-Forwarded-Host', 'X-Forwarded-Proto', 'X-Real-IP', 'X-Request-ID', 'X-Requested-With'];
+
   const SNIPPETS = {
     pre: [
       ['Get an environment variable', "pm.environment.get('variable_key');"],
@@ -191,6 +198,7 @@
         title: 'Headers',
         rows: req.headers,
         description: true,
+        keySuggestions: COMMON_HEADERS,
         onChange: panelChanged,
         extraActions: HD.button(hidden ? `Show ${auto.length} auto-generated` : 'Hide auto-generated', () => { ui.showAutoHeaders = hidden; renderReqPanel(); }, { ghost: true, small: true }),
       }));

@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const crypto = require('crypto');
 
 // A small echo server used by the tests.
-function startServer() {
+function startServer(port = 0) {
   const nonce = crypto.randomBytes(8).toString('hex');
   const server = http.createServer((req, res) => {
     const chunks = [];
@@ -52,7 +52,7 @@ function startServer() {
       }
     });
   });
-  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ server, base: `http://127.0.0.1:${server.address().port}` })));
+  return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve({ server, base: `http://localhost:${server.address().port}` })));
 }
 
 module.exports = { startServer };

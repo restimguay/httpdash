@@ -248,3 +248,26 @@ test('cookie parsing respects domain and path', () => {
   assert.strictEqual(cookies.cookieHeader(jar, 'https://example.com/api/y'), 'a=1');
   assert.strictEqual(cookies.cookieHeader(jar, 'https://example.com/other'), '');
 });
+
+test('browser-restricted headers (Referer, Origin, User-Agent, Host) are sent verbatim', async () => {
+  const headers = [
+    ['Referer', 'https://www.google.com/search?q=spoofed'],
+    ['Origin', 'https://evil.example'],
+    ['User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'],
+    ['Host', 'virtual.example.com'],
+    ['Cookie', 'manual=1'],
+  ].map(([key, value]) => ({ key, value, enabled: true }));
+  const res = await execute({ request: newRequestDef({ url: `${srv.base}/echo`, headers }), scopes: scopes() });
+  const got = JSON.parse(res.response.bodyText).headers;
+  assert.strictEqual(got.referer, 'https://www.google.com/search?q=spoofed');
+  assert.strictEqual(got.origin, 'https://evil.example');
+  assert.strictEqual(got['user-agent'], 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
+  assert.strictEqual(got.host, 'virtual.example.com');
+  assert.strictEqual(got.cookie, 'manual=1');
+});
+
+test('Referer survives redirects', async () => {
+  const headers = [{ key: 'Referer', value: 'https://ref.example/', enabled: true }];
+  const res = await execute({ request: newRequestDef({ url: `${srv.base}/redirect`, headers }), scopes: scopes() });
+  assert.strictEqual(JSON.parse(res.response.bodyText).headers.referer, 'https://ref.example/');
+});

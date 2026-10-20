@@ -276,6 +276,8 @@
           useCookies: cfg.useCookies,
           settings: S.ws.settings,
         });
+        // The returned summary is authoritative; the last progress event can arrive after the reply.
+        run.results = summary.results;
         run.summary = { ...summary, results: undefined };
         if (cfg.persist) {
           let changed = HD.applyScope(S.ws.globals, before.globals, summary.scopes.globals);

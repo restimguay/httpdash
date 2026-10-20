@@ -2,6 +2,8 @@
 
 A Postman-style API client for the desktop, built with Electron and plain JavaScript (no build step).
 
+![Request with spoofed Referer, Origin and User-Agent headers](docs/screenshots/01-referrer-spoofing.png)
+
 ## Run it
 
 ```bash
@@ -12,6 +14,39 @@ npm start
 Run the engine's unit tests (HTTP client, auth, scripts, runner, importers, code generation) with `npm test`.
 
 Data is stored as JSON in Electron's `userData` folder (Settings → Data shows the path). Set `HTTPDASH_DATA_DIR` to use a different folder.
+
+## Download / build for macOS and Windows
+
+Every push and pull request runs the GitHub Actions workflow in `.github/workflows/build.yml`, which tests the app and then builds:
+
+| Platform | Files |
+| --- | --- |
+| macOS (Intel and Apple Silicon) | `HttpDash-<version>-mac-x64.dmg`, `…-mac-arm64.dmg`, plus `.zip` versions |
+| Windows (x64 and ARM64) | `HttpDash-Setup-<version>-x64.exe` / `-arm64.exe` installers, and a no-install `HttpDash-<version>-portable.exe` |
+
+Download them from the workflow run's **Artifacts**. Pushing a tag such as `v1.0.0` also attaches them to a GitHub Release.
+
+To build locally, run `npm run dist:mac` on a Mac or `npm run dist:win` on Windows. Output goes to `dist/`.
+
+**Code signing.** Without certificates, the Mac build is ad-hoc signed and the Windows build is unsigned:
+- **macOS:** the first launch is blocked by Gatekeeper. Right-click the app and choose **Open**, or run `xattr -cr /Applications/HttpDash.app`.
+- **Windows:** SmartScreen may warn. Choose **More info → Run anyway**.
+
+To sign (and notarize on Mac), add these repository secrets; the workflow picks them up automatically:
+- macOS: `MAC_CSC_LINK` (base64 .p12), `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
+- Windows: `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`
+
+## Spoofing Referer, Origin, User-Agent and other headers
+
+Requests are sent from Node's HTTP stack, not a browser, so none of the browser's "forbidden header" rules apply. Whatever you put in the **Headers** tab is sent exactly as written, including:
+- `Referer`, `Origin` and `User-Agent`
+- `Host` (useful for virtual hosts)
+- `Cookie` (overrides the cookie jar for that request)
+- `X-Forwarded-For` and other `Sec-*` headers
+
+The header-name field autocompletes common headers. A custom `Referer` is kept when redirects are followed.
+
+Some of these are set automatically if you don't set them (User-Agent, Accept, Accept-Encoding, Cache-Control, Host, Content-Type, Content-Length). Your own value always wins; **Show auto-generated** in the Headers tab lists them. The default User-Agent can be changed in Settings.
 
 ## Features
 
@@ -56,6 +91,15 @@ Data is stored as JSON in Electron's `userData` folder (Settings → Data shows 
 - Cookie manager (view / add / edit / delete per domain)
 - Settings: timeout, redirects, SSL verification, HTTP proxy (including HTTPS via CONNECT, with auth and bypass list), user agent, response size limit, light / dark / system theme, editor font size, stacked or side-by-side layout
 - Console panel with network and script logs; keyboard shortcuts (Ctrl/Cmd+T, Enter, S, W, O)
+
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Tests](docs/screenshots/02-tests.png) Test scripts and results | ![Timeline](docs/screenshots/03-timeline.png) Timeline of the exact request sent |
+| ![JSON body](docs/screenshots/04-json-body.png) JSON body with dynamic variables | ![OAuth 2.0](docs/screenshots/05-oauth2.png) OAuth 2.0 token helper |
+| ![Code snippet](docs/screenshots/06-code-snippet.png) Code generation | ![Runner](docs/screenshots/07-runner.png) Collection runner with a data file |
+| ![Environment](docs/screenshots/08-dark-environment.png) Environments (dark theme) | ![Console](docs/screenshots/09-dark-console.png) Console |
 
 ## Not included
 
