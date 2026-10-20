@@ -61,6 +61,28 @@ Auth dependencies are saved in HttpDash's workspace. Postman's export format has
 
 ![Auth dependency settings](docs/screenshots/10-auth-dependency-setup.png)
 
+## Service discovery (auto-create environments)
+
+Point HttpDash at a service registry and it builds an environment with one variable per service. For example, `{{orders_url}}` = `http://10.0.1.5:8080`, so requests can use `{{orders_url}}/api/orders`.
+
+To add a registry, open **Environments** in the sidebar and click **Service discovery → +**.
+
+| Registry | What it reads |
+| --- | --- |
+| Consul | `/v1/catalog/services` plus each service's healthy instances. Options: ACL token, datacenter, tag filter, http/https. |
+| Eureka (Spring Cloud) | `/eureka/apps`, instances with status UP only. Uses each app's home page URL or its host and port. |
+| Kubernetes | Services in a namespace (or `*` for all), using a service-account bearer token and an optional label selector. The address can be the cluster DNS name, the cluster IP, or the external LoadBalancer address. |
+| Custom JSON | Any endpoint returning a list of services or a `{ "name": "url" }` map. You set the list path, the name field, and a URL field or template such as `http://{host}:{port}`. |
+
+- **Preview services** shows what would be created, without changing anything.
+- **Create environment** makes the environment the first time.
+- **Sync / Re-sync** updates the same environment in place: changed URLs are updated, new services are added, and services that vanished are removed (unless you tick "keep"). Variables you added yourself, such as API keys, are never touched.
+- **Variable names** follow a pattern: `{name}_url` by default, or `{NAME}_BASE` for upper case.
+- **Startup sync:** each source can be set to sync automatically when HttpDash starts.
+- **Settings:** registry requests use your proxy settings, and SSL verification can be turned off per source (useful for Kubernetes API servers with self-signed certificates).
+
+![Service discovery preview](docs/screenshots/14-discovery-preview.png)
+
 ## Spoofing Referer, Origin, User-Agent and other headers
 
 Requests are sent from Node's HTTP stack, not a browser, so none of the browser's "forbidden header" rules apply. Whatever you put in the **Headers** tab is sent exactly as written, including:

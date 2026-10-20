@@ -11,6 +11,8 @@ const { parseCurl } = require('../core/curl');
 const postman = require('../core/postman');
 const runner = require('../core/runner');
 const { makeLookup } = require('../core/dependency');
+const discovery = require('../core/discovery');
+const { resolve: resolveVars } = require('../core/variables');
 const httpClient = require('../core/http-client');
 const { seedWorkspace } = require('./seed');
 
@@ -246,6 +248,19 @@ handle('oauth2:getToken', async ({ config, scopes, settings }) => {
     throw new Error(`Token request failed (${res.status}): ${json.error_description || json.error || text.slice(0, 300)}`);
   }
   return json;
+});
+
+// Service discovery: query a registry and sync its services into environment values.
+handle('discovery:sync', async ({ config, values, sourceId, settings, vars, previewOnly }) => {
+  const r = (v) => (typeof v === 'string' ? resolveVars(v, vars || {}) : v);
+  const cfg = { ...config, url: r(config.url), token: r(config.token), headers: (config.headers || []).map((h) => ({ ...h, value: r(h.value) })) };
+  const { services, warnings } = await discovery.discover(cfg, settings);
+  const out = { services: services.map((s) => ({ ...s, variable: discovery.variableName(cfg.variablePattern, s.name) })), warnings };
+  if (previewOnly) return out;
+  const next = JSON.parse(JSON.stringify(values || []));
+  out.diff = discovery.syncValues(next, services, { sourceId, variablePattern: cfg.variablePattern, keepMissing: !!cfg.keepMissing });
+  out.values = next;
+  return out;
 });
 
 handle('shell:openExternal', (url) => { if (/^https?:/.test(url)) shell.openExternal(url); });

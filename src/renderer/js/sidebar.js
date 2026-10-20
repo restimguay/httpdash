@@ -235,6 +235,7 @@
       h('button.tree-more', { type: 'button', onclick: (e) => { e.stopPropagation(); HD.menu(e, envMenu(env)); } }, HD.icon('dots'))));
     }
     if (!S.ws.environments.length) list.appendChild(h('div.empty-state.small', 'No environments. Environments hold sets of variables like base URLs and tokens.'));
+    HD.renderDiscoverySidebar(list);
   }
 
   function envMenu(env) {

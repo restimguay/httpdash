@@ -106,6 +106,7 @@
         h('div.req-header-actions',
           active ? h('span.pill', 'Active') : HD.button('Set active', () => { S.ws.activeEnvironmentId = env.id; touch(); HD.renderEnvSelect(); HD.renderSidebar(); HD.renderActiveTab(); }, { small: true }),
           HD.button('Export', () => window.api.exportEnvironment(env), { small: true, icon: 'upload' }))),
+      HD.discoveryBannerFor(env),
       h('div.panel-pad', h('div.muted.small', 'Reference variables with {{name}} in URLs, headers, bodies and auth fields. Mark sensitive values as "secret" to mask them.')),
       HD.kvTable({ rows: env.values, secret: true, onChange: () => { touch(); HD.refreshVarHighlights(); } })));
   };

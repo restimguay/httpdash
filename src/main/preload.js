@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   getOAuth2Token: invoke('oauth2:getToken'),
+  syncDiscovery: invoke('discovery:sync'),
   openExternal: invoke('shell:openExternal'),
   onMenu: (fn) => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
 });

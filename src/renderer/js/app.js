@@ -77,6 +77,7 @@
     if (t.kind === 'environment') { const e = S.ws.environments.find((x) => x.id === t.refId); return e ? e.name : 'Deleted'; }
     if (t.kind === 'globals') return 'Globals';
     if (t.kind === 'runner') return 'Collection Runner';
+    if (t.kind === 'discovery') { const d = HD.discoverySources().find((x) => x.id === t.refId); return d ? d.name : 'Deleted'; }
     return 'Tab';
   };
 
@@ -148,7 +149,7 @@
     for (const t of S.ws.tabs) {
       const icon = t.kind === 'request'
         ? h(`span.method-tag.${HD.methodClass(t.draft.request.method)}`, t.draft.request.method.slice(0, 6))
-        : HD.icon({ collection: 'layers', folder: 'folder', environment: 'globe', globals: 'globe', runner: 'play' }[t.kind] || 'file');
+        : HD.icon({ collection: 'layers', folder: 'folder', environment: 'globe', globals: 'globe', runner: 'play', discovery: 'search' }[t.kind] || 'file');
       const el = h('div.tab', {
         class: [t.id === S.ws.activeTabId && 'active', t.dirty && 'dirty', S.sending.get(t.id) && 'sending'].filter(Boolean).join(' '),
         title: t.kind === 'request' ? `${tabTitle(t)}\n${t.draft.request.url}` : tabTitle(t),
@@ -374,6 +375,7 @@
       if (t && ['environment', 'globals', 'collection'].includes(t.kind)) HD.renderActiveTab();
     });
     window.addEventListener('beforeunload', () => window.api.saveWorkspace(S.ws));
+    HD.syncDiscoveryOnStartup();
   };
   boot().catch((e) => {
     document.body.textContent = `Failed to start: ${e.message}`;
