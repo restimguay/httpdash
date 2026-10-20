@@ -13,11 +13,13 @@
   },
   "dependencies": {
     "chai": "4.5.0",
-    "codemirror": "5.65.21"
+    "codemirror": "5.65.21",
+    "ldapts": "^9.2.0"
   },
   "devDependencies": {
     "electron": "43.7.8",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "ldapjs": "^3.0.7"
   },
   "build": {
     "appId": "com.httpdash.app",

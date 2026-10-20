@@ -183,7 +183,7 @@
 
   // ---- Settings -----------------------------------------------------------------------------
 
-  HD.showSettings = async () => {
+  HD.showSettings = async (initialSection) => {
     const s = S.ws.settings;
     const info = await window.api.appInfo();
     const toggle = (key, label, help) => h('div.setting-row',
@@ -196,11 +196,11 @@
       h('div', h('div.setting-label', label), help ? h('div.setting-help', help) : null),
       h('input.input.input-med', { type, value: obj[key] || '', oninput: (e) => { obj[key] = e.target.value; HD.save(); } }));
     const p = s.proxy;
-    let section = 'general';
+    let section = initialSection || 'general';
     const body = h('div.settings');
     const render = () => {
       HD.clear(body);
-      const nav = HD.tabStrip([{ id: 'general', label: 'General' }, { id: 'proxy', label: 'Proxy' }, { id: 'appearance', label: 'Appearance' }, { id: 'data', label: 'Data' }, { id: 'about', label: 'About' }], section, (id) => { section = id; render(); });
+      const nav = HD.tabStrip([{ id: 'general', label: 'General' }, { id: 'proxy', label: 'Proxy' }, { id: 'appearance', label: 'Appearance' }, { id: 'security', label: 'Security' }, { id: 'data', label: 'Data' }, { id: 'about', label: 'About' }], section, (id) => { section = id; render(); });
       const panel = h('div.settings-panel');
       if (section === 'general') {
         panel.append(
@@ -227,6 +227,8 @@
           h('div.setting-row', h('div', h('div.setting-label', 'Theme')), HD.select([['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], s.theme || 'system', (v) => { s.theme = v; HD.save(); HD.applyTheme(); })),
           h('div.setting-row', h('div', h('div.setting-label', 'Editor font size')), HD.select([11, 12, 13, 14, 15, 16].map((n) => [n, `${n}px`]), s.fontSize || 13, (v) => { s.fontSize = Number(v); HD.save(); HD.applyTheme(); })),
           h('div.setting-row', h('div', h('div.setting-label', 'Request / response layout')), HD.select([['vertical', 'Stacked (response below)'], ['horizontal', 'Side by side']], S.ws.ui.layout || 'vertical', (v) => { S.ws.ui.layout = v; HD.save(); HD.renderActiveTab(); })));
+      } else if (section === 'security') {
+        HD.renderSecuritySettings(panel);
       } else if (section === 'data') {
         panel.append(
           h('div.setting-row', h('div', h('div.setting-label', 'Export all'), h('div.setting-help', 'Back up everything to one file, or export all collections and environments in Postman format. Restore a backup with Import.')), HD.button('Export all…', () => HD.showExportAll(), { small: true })),
