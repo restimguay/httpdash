@@ -36,6 +36,62 @@ To sign (and notarize on Mac), add these repository secrets; the workflow picks 
 - macOS: `MAC_CSC_LINK` (base64 .p12), `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
 - Windows: `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`
 
+## Command-line runner (CI and schedulers)
+
+Run collections without opening the app, like Postman's Newman. The runner needs Node.js 22+:
+
+```bash
+npm install -g github:restimguay/httpdash     # or, in a clone: npm run cli -- run …
+httpdash list backup.json
+httpdash run backup.json -c "CCER SGF1 QA" -e "CCER_SGF1_QA" --env-var password=$CCER_PASSWORD -r cli,junit
+```
+
+- **Input:** an HttpDash backup (**Export → HttpDash backup**, ideally with "Leave out secrets"), a Postman collection, or a `workspace.json`.
+- **Environments:** pick one by name from the backup with `-e`, or pass a Postman environment file.
+- **Secrets in CI:** pass them with `--env-var key=value`.
+- **Other options:**
+  - `-n` for iterations and `-d data.csv` for data-driven runs.
+  - `--folder`, `--bail`, `--delay-request`, `--timeout-request`.
+  - `-k` to skip SSL verification.
+  - Reporters: `cli`, `json` and `junit` (JUnit XML is read by Jenkins, GitLab, Azure DevOps and GitHub test reporters).
+- **What carries over from the app:** auth dependencies and scripts work exactly as in the app.
+- **Exit codes:** `0` all passed, `1` a test or request failed, `2` bad arguments or input.
+
+## Monitors
+
+**Monitors** (sidebar) run a collection or folder on a schedule, from every minute to every 24 hours, against a chosen environment.
+- **Results:** success rate, a duration chart, run history with the failed tests, and desktop notifications when a monitor fails or recovers.
+- **Variables:** changes such as refreshed tokens can be kept.
+- **When they run:** while HttpDash is open and unlocked. For round-the-clock checks, schedule the command-line runner with cron, Windows Task Scheduler or your CI.
+
+## Mock server
+
+Each collection has a **Mock server** tab that serves the examples saved on its requests. To save one, send a request, then use the response's "…" menu → **Save as example**.
+
+- **Starting it:** pick a port, an optional delay, and whether other devices on your network may connect; then start it. **Use in an environment** creates a copy of your environment whose `{{BASE_URL}}`-style variables point at the mock, and switches to it.
+- **Matching:** routes match on method and path. `:id` and `{{variable}}` segments match any value, and literal segments win.
+- **Choosing an example:** clients can pick a specific one with the `x-mock-response-name` or `x-mock-response-code` header.
+- **Other behaviour:**
+  - CORS is enabled.
+  - Requests without examples answer 501 with a hint, and unknown paths list the available routes.
+  - Recent requests are shown live.
+  - Mock servers stop when the app locks or quits.
+
+## Secret scan and audit log
+
+**Tools → Scan for Secrets** (also in Settings → Security and the Export dialog) looks for credentials typed directly into requests:
+- AWS, GitHub, Slack, Stripe and Google keys, private keys and JWTs;
+- passwords in URLs;
+- plain-text auth fields and `Authorization`/key/token headers;
+- secrets in scripts and bodies;
+- sensitive-looking variables that aren't marked secret.
+
+One click moves a value into a secret variable (keeping prefixes like `Token {{…}}`) or marks a variable as secret.
+
+**Tools → Audit Log** keeps a local record (`audit.log`, rotated at 5 MB) of app starts, sign-ins and locks, lock setting changes, exports and imports, requests sent, collection and monitor runs, and mock servers. It records who, when and what. Request entries store only method, host, path and status, never headers, bodies or query values. You can filter, export (JSON Lines) or clear it; clearing is itself recorded.
+
+![Monitor](docs/screenshots/24-monitor.png)
+
 ## App lock with LDAP sign-in
 
 HttpDash can require a directory (LDAP) sign-in before it opens. Set it up in **Settings → Security**:

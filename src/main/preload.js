@@ -55,5 +55,19 @@ contextBridge.exposeInMainWorld('api', {
     recover: invoke('lock:recover'),
     disable: invoke('lock:disable'),
   },
+  runMonitor: invoke('monitor:run'),
+  mock: {
+    start: invoke('mock:start'),
+    update: invoke('mock:update'),
+    stop: invoke('mock:stop'),
+    list: invoke('mock:list'),
+    onLog: (fn) => ipcRenderer.on('mock:log', (_e, entry) => fn(entry)),
+  },
+  scanSecrets: invoke('secrets:scan'),
+  audit: {
+    read: invoke('audit:read'),
+    clear: invoke('audit:clear'),
+    export: invoke('audit:export'),
+  },
   onMenu: (fn) => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
 });

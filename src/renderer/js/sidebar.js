@@ -17,6 +17,7 @@
       ['collections', 'layers', 'Collections'],
       ['environments', 'globe', 'Environments'],
       ['history', 'history', 'History'],
+      ['monitors', 'pulse', 'Monitors'],
     ].map(([id, icon, label]) => h('button.side-nav-btn', {
       class: id === tab ? 'active' : '', type: 'button', title: label,
       onclick: () => { S.ws.ui.sidebarTab = id; HD.save(); HD.renderSidebar(); },
@@ -25,6 +26,7 @@
     root.append(nav, panel);
     if (tab === 'collections') renderCollections(panel);
     else if (tab === 'environments') renderEnvironments(panel);
+    else if (tab === 'monitors') HD.renderMonitorsSidebar(panel);
     else renderHistory(panel);
   };
 

@@ -27,7 +27,7 @@
       { id: 'pre', label: 'Pre-request Script', dot: !!(node.preRequestScript || '').trim() },
       { id: 'tests', label: 'Tests', dot: !!(node.testScript || '').trim() },
     ];
-    if (kind === 'collection') tabs.push({ id: 'variables', label: 'Variables', badge: (node.variables || []).filter((v) => v.key).length || null });
+    if (kind === 'collection') tabs.push({ id: 'variables', label: 'Variables', badge: (node.variables || []).filter((v) => v.key).length || null }, { id: 'mock', label: 'Mock server' });
 
     const panel = h('div.req-panel');
     const strip = h('div');
@@ -72,6 +72,8 @@
           ['Status code is 2xx', "pm.test('Status code is 2xx', () => {\n  pm.response.to.be.success;\n});"],
           ['Response time below 1s', "pm.test('Response time below 1s', () => {\n  pm.expect(pm.response.responseTime).to.be.below(1000);\n});"],
         ], () => { touch(); renderStrip(); }, `This script runs after every request in this ${kind}.`));
+      } else if (t === 'mock') {
+        HD.renderMockPanel(panel, node);
       } else if (t === 'variables') {
         node.variables = node.variables || [];
         panel.appendChild(h('div.panel-pad', h('div.muted.small', 'Collection variables are available to every request in this collection. Environment variables override them.')));

@@ -33,6 +33,24 @@ const keychain = {
   },
 };
 const appLock = new AppLock({ file: path.join(dataDir, 'security.json'), secret: keychain });
+
+// Local audit log, mock servers and the secret scanner.
+const os = require('os');
+const { AuditLog, safeTarget } = require('../core/audit');
+const { startMockServer } = require('../core/mock');
+const { scanWorkspace } = require('../core/secrets');
+const audit = new AuditLog(path.join(dataDir, 'audit.log'), {
+  user: () => appLock.status().lastUser || (() => { try { return os.userInfo().username; } catch { return ''; } })(),
+});
+audit.append('app.start', { version: app.getVersion(), platform: process.platform });
+const mocks = new Map(); // collectionId -> { server, name }
+const stopAllMocks = async () => {
+  for (const [id, m] of mocks) {
+    await m.server.close();
+    audit.append('mock.stop', { collection: m.name, reason: 'locked' });
+    mocks.delete(id);
+  }
+};
 const saveJar = () => cookieStore.save({ cookies: jar });
 
 let win;
@@ -112,6 +130,10 @@ function buildMenu() {
         { label: 'Collection Runner', click: send('runner') },
         { label: 'Cookies', click: send('cookies') },
         { label: 'Generate Code', click: send('codegen') },
+        { type: 'separator' },
+        { label: 'Monitors', click: send('monitors') },
+        { label: 'Scan for Secrets', click: send('secrets') },
+        { label: 'Audit Log', click: send('audit') },
       ],
     },
     { role: 'windowMenu' },
@@ -131,14 +153,29 @@ const handle = (channel, fn) => ipcMain.handle(channel, async (_e, ...args) => {
 
 handle('lock:status', () => appLock.status());
 handle('lock:getConfig', () => appLock.publicConfig());
-handle('lock:setConfig', (cfg) => appLock.setConfig(cfg));
-handle('lock:test', ({ username, password }) => appLock.test(username, password));
-handle('lock:enable', (opts) => appLock.enable(opts));
-handle('lock:update', (opts) => appLock.updateLock(opts));
-handle('lock:lock', () => appLock.lock());
-handle('lock:unlock', ({ username, password }) => appLock.unlock(username, password));
-handle('lock:recover', (code) => appLock.recover(code));
-handle('lock:disable', ({ username, password }) => appLock.disable(username, password));
+// Runs fn and writes an audit entry for success or failure.
+const audited = async (event, details, fn) => {
+  try {
+    const out = await fn();
+    audit.append(event, { ...details, ok: true });
+    return out;
+  } catch (e) {
+    audit.append(event, { ...details, ok: false, error: e.message });
+    throw e;
+  }
+};
+handle('lock:setConfig', (cfg) => audited('lock.settings', { url: cfg.url, mode: cfg.mode }, () => appLock.setConfig(cfg)));
+handle('lock:test', async ({ username, password }) => {
+  const r = await appLock.test(username, password);
+  audit.append('lock.test', { username, ok: r.ok, error: r.error });
+  return r;
+});
+handle('lock:enable', (opts) => audited('lock.enable', { allowedUsers: opts && opts.allowedUsers }, () => appLock.enable(opts)));
+handle('lock:update', (opts) => audited('lock.update', opts || {}, () => appLock.updateLock(opts)));
+handle('lock:lock', () => audited('lock.lock', {}, async () => { await stopAllMocks(); return appLock.lock(); }));
+handle('lock:unlock', ({ username, password }) => audited('lock.unlock', { username }, () => appLock.unlock(username, password)));
+handle('lock:recover', (code) => audited('lock.recover', {}, () => appLock.recover(code)));
+handle('lock:disable', ({ username, password }) => audited('lock.disable', { username }, () => appLock.disable(username, password)));
 
 handle('workspace:load', () => workspaceStore.load());
 handle('workspace:save', (data) => { workspaceStore.save(data); return true; });
@@ -156,6 +193,12 @@ handle('request:send', async ({ id, request, chain, scopes, settings, info, coll
       log: (level, message) => logs.push({ level, message, time: Date.now() }),
     });
     res.logs = logs;
+    audit.append('request.send', {
+      name: info && info.requestName, method: res.sentRequest ? res.sentRequest.method : request.method,
+      target: safeTarget(res.sentRequest ? res.sentRequest.url : request.url),
+      status: res.response ? res.response.status : undefined, error: res.error || undefined,
+      authDependency: res.dependencyRuns && res.dependencyRuns.length ? res.dependencyRuns.map((d) => d.name) : undefined,
+    });
     return res;
   } finally {
     inflight.delete(id);
@@ -178,13 +221,15 @@ handle('import:files', async () => {
     filters: [{ name: 'Collections, environments, OpenAPI', extensions: ['json'] }, { name: 'All files', extensions: ['*'] }],
   });
   if (r.canceled) return [];
-  return r.filePaths.map((f) => {
+  const items = r.filePaths.map((f) => {
     try {
       return { file: path.basename(f), ...postman.importAny(JSON.parse(fs.readFileSync(f, 'utf8'))) };
     } catch (e) {
       return { file: path.basename(f), error: e.message };
     }
   });
+  audit.append('import.files', { files: items.map((i) => `${i.file} (${i.error ? 'error' : i.kind})`) });
+  return items;
 });
 
 async function saveJson(defaultName, data) {
@@ -204,6 +249,7 @@ handle('export:all', async ({ workspace, format, excludeSecrets }) => {
   if (format === 'backup') {
     const data = backup.makeBackup(workspace, jar, { excludeSecrets, appVersion: app.getVersion() });
     const file = await saveJson(`httpdash-backup-${date}.json`, data);
+    if (file) audit.append('export.all', { format, secretsIncluded: !excludeSecrets, path: file });
     return file ? { path: file, files: 1 } : null;
   }
   const r = await dialog.showOpenDialog(win, { title: 'Choose a folder for the Postman files', properties: ['openDirectory', 'createDirectory'] });
@@ -224,11 +270,13 @@ handle('export:all', async ({ workspace, format, excludeSecrets }) => {
   if ((ws.globals || []).some((g) => g.key)) {
     write('globals.postman_globals', { ...postman.exportEnvironment({ id: 'globals', name: 'Globals', values: ws.globals }), _postman_variable_scope: 'globals' });
   }
+  audit.append('export.all', { format, secretsIncluded: !excludeSecrets, path: dir, files: used.size });
   return { path: dir, files: used.size };
 });
 
 handle('backup:restore', ({ current, data, mode }) => {
   const res = backup.restore(current, data, mode);
+  audit.append('import.backup', { mode, collections: res.added.collections, environments: res.added.environments });
   if (res.cookies) {
     jar = mode === 'replace' ? res.cookies : backup.mergeCookies(jar, res.cookies);
     saveJar();
@@ -264,6 +312,7 @@ handle('runner:start', async (opts) => {
       signal: controller.signal,
       onEvent: (evt) => win && !win.isDestroyed() && win.webContents.send('runner:event', evt),
     });
+    audit.append('runner.run', { collection: opts.collection && opts.collection.name, requests: summary.requests, passed: summary.passed, failed: summary.failed, errors: summary.failedRequests });
     return summary;
   } finally {
     activeRun = null;
@@ -271,6 +320,52 @@ handle('runner:start', async (opts) => {
   }
 });
 handle('runner:stop', () => { if (activeRun) activeRun.abort(); return true; });
+
+// Monitors run independently of the interactive runner (they may overlap with it).
+handle('monitor:run', async (opts) => {
+  const summary = await runner.run({ ...opts, jar: opts.useCookies === false ? [] : jar });
+  saveJar();
+  audit.append('monitor.run', { monitor: opts.monitorName, collection: opts.collection && opts.collection.name, requests: summary.requests, failed: summary.failed, errors: summary.failedRequests });
+  return { ...summary, results: summary.results.map((r) => ({ name: r.name, method: r.method, url: r.url, status: r.status, time: r.time, error: r.error, tests: r.tests.filter((t) => !t.passed).map((t) => ({ name: t.name, error: t.error })) })) };
+});
+
+handle('mock:start', async ({ collection, port, delayMs, lan }) => {
+  const existing = mocks.get(collection.id);
+  if (existing) { await existing.server.close(); mocks.delete(collection.id); }
+  const server = await startMockServer({
+    collection, port: Number(port) || 0, delayMs: Number(delayMs) || 0, host: lan ? '0.0.0.0' : '127.0.0.1',
+    onRequest: (entry) => win && !win.isDestroyed() && win.webContents.send('mock:log', { collectionId: collection.id, ...entry }),
+  });
+  mocks.set(collection.id, { server, name: collection.name, lan: !!lan, delayMs: Number(delayMs) || 0 });
+  audit.append('mock.start', { collection: collection.name, port: server.port, lan: !!lan });
+  return { url: server.url, port: server.port };
+});
+handle('mock:update', ({ collection }) => {
+  const m = mocks.get(collection.id);
+  if (m) m.server.update(collection);
+  return !!m;
+});
+handle('mock:stop', async (collectionId) => {
+  const m = mocks.get(collectionId);
+  if (!m) return false;
+  await m.server.close();
+  mocks.delete(collectionId);
+  audit.append('mock.stop', { collection: m.name });
+  return true;
+});
+handle('mock:list', () => [...mocks].map(([id, m]) => ({ collectionId: id, url: m.server.url, port: m.server.port, lan: m.lan, delayMs: m.delayMs })));
+
+handle('secrets:scan', (workspace) => scanWorkspace(workspace));
+
+handle('audit:read', (filter) => audit.read(filter || {}));
+handle('audit:clear', () => { audit.clear(); audit.append('audit.clear', {}); return true; });
+handle('audit:export', async () => {
+  const r = await dialog.showSaveDialog(win, { defaultPath: `httpdash-audit-${new Date().toISOString().slice(0, 10)}.jsonl`, filters: [{ name: 'JSON Lines', extensions: ['jsonl'] }] });
+  if (r.canceled || !r.filePath) return null;
+  fs.writeFileSync(r.filePath, audit.read({ limit: 1e9 }).reverse().map((e) => JSON.stringify(e)).join('\n') + '\n');
+  audit.append('audit.export', { path: r.filePath });
+  return r.filePath;
+});
 
 handle('cookies:list', () => jar);
 handle('cookies:delete', ({ name, domain, path: p }) => {
