@@ -37,6 +37,8 @@ There is no build step: the app is plain JavaScript, and changes show up on the 
 
 Put logic in `src/core/` whenever you can, so it can be tested without Electron and works in the CLI too.
 
+Scripts run inside a QuickJS sandbox. The `pm` API lives in `src/core/sandbox-guest.js`, which runs *inside* the sandbox and can only reach the outside through the host functions in `src/core/sandbox.js`. Keep those host functions small, and have them take and return plain strings and numbers. `src/core/vendor/chai.min.js` is generated: after upgrading chai, run `npm run vendor`.
+
 ## Making a change
 
 1. Create a branch from `main`.

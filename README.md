@@ -259,7 +259,9 @@ Some of these are set automatically if you don't set them (User-Agent, Accept, A
 - `pm.environment` / `globals` / `collectionVariables` / `variables` / `iterationData`, `pm.request` (headers, URL, query, body), `pm.response` (`json()`, `text()`, `headers`, `code`, `responseTime`)
 - `pm.test`, `pm.expect` (Chai), `pm.response.to.have.status(...)` / `.header(...)` / `.jsonBody(...)` / `.jsonSchema(...)` / `.be.success` and similar
 - `pm.sendRequest`, `pm.setNextRequest`, `pm.cookies`, `pm.visualizer`, `pm.execution.skipRequest`
-- `CryptoJS` (MD5, SHA, HMAC, encoders), `atob` / `btoa`, `console.*` output in the Console panel, and legacy `tests[...]`, `postman.*`, `responseBody`
+- `CryptoJS` (MD5, SHA-1/224/256/384/512 and their HMACs, encoders), `atob` / `btoa`, `Buffer`, `URL` / `URLSearchParams`, `TextEncoder` / `TextDecoder`, `setTimeout`, `console.*` output in the Console panel, and legacy `tests[...]`, `postman.*`, `responseBody`
+- `require` for `chai`, `crypto-js`, `util`, `url` and `buffer`
+- Every script runs in an isolated sandbox with no access to Node or your files
 - Snippet library in the script editor
 
 **Organisation**
@@ -295,7 +297,7 @@ Some of these are set automatically if you don't set them (User-Agent, Accept, A
 
 Compared with Postman, these are not implemented: WebSocket, gRPC, Socket.IO and MQTT requests; OAuth 2.0 authorization-code and implicit flows; NTLM, Hawk and Akamai auth; client certificates; API documentation publishing and hosted cloud sync (team sharing works through git instead); YAML OpenAPI import.
 
-Scripts run in Node's `vm` module in the main process. That is not a security boundary, so only run collections whose scripts you trust (Postman has the same caveat).
+Scripts run in a sandbox: QuickJS, a separate JavaScript engine compiled to WebAssembly, with a fresh engine per script and limits of 30 seconds and 256 MB. They can't reach Node, files, other processes or HttpDash's own data. They can still send requests with `pm.sendRequest` and read the variables in scope, so review scripts from people you don't trust before running them. See [SECURITY.md](SECURITY.md).
 
 ## Website
 
@@ -313,7 +315,9 @@ rsync -rlvz --delete --exclude .well-known --exclude .htaccess website/ <user>@<
 src/core/      request engine (no Electron dependency, unit-tested)
   http-client.js  HTTP/HTTPS with timings, redirects, decompression, proxy
   executor.js     variables, auth, bodies, scripts, cookies -> response
-  sandbox.js      the pm.* script API
+  sandbox.js      runs scripts in a QuickJS (WebAssembly) sandbox
+  sandbox-guest.js  the pm.* script API, running inside the sandbox
+  vendor/         minified chai for the sandbox (npm run vendor)
   runner.js       collection runner and CSV/JSON data files
   postman.js      Postman / OpenAPI import and export
   curl.js         cURL parser
