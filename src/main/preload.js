@@ -69,5 +69,17 @@ contextBridge.exposeInMainWorld('api', {
     clear: invoke('audit:clear'),
     export: invoke('audit:export'),
   },
+  team: {
+    gitVersion: invoke('team:gitVersion'),
+    setToken: invoke('team:setToken'),
+    tokenInfo: invoke('team:tokenInfo'),
+    sync: invoke('team:sync'),
+    resolve: invoke('team:resolve'),
+    apply: invoke('team:apply'),
+    scan: invoke('team:scan'),
+    abort: invoke('team:abort'),
+    log: invoke('team:log'),
+    remove: invoke('team:remove'),
+  },
   onMenu: (fn) => ipcRenderer.on('menu', (_e, cmd) => fn(cmd)),
 });

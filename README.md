@@ -36,6 +36,39 @@ To sign (and notarize on Mac), add these repository secrets; the workflow picks 
 - macOS: `MAC_CSC_LINK` (base64 .p12), `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
 - Windows: `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`
 
+## Team sharing through git
+
+Share collections and environments with your team through any git repository: GitHub, GitLab, Bitbucket, Azure DevOps, Gitea or your own server. Open **Team** in the sidebar and connect a repository:
+
+1. **Repository:** enter its URL (HTTPS or SSH), the branch, and optionally a folder, so the workspace can live inside an existing project repository.
+2. **Sign-in:** either use this computer's git (SSH keys, Git Credential Manager, stored credentials), or save an access token. Tokens are encrypted with the system keychain and kept out of the workspace, exports and the repository.
+3. **Shared items:** tick the collections and environments to share, then click **Sync**.
+
+Teammates connect the same repository and click **Get latest**; the shared items appear in their sidebar with a team badge.
+
+- **Sync** saves your shared items, commits them (with your message, or a summary of what changed), merges teammates' changes and pushes.
+- **Get latest** brings in teammates' changes without pushing yours.
+- **Conflicts:** each request is its own file, so two people rarely edit the same file. When they do, HttpDash lists the files and you choose **Keep mine**, **Keep the team's** or **Cancel sync**. Changes to other items merge either way.
+- **Secrets stay local:**
+  - Secret variables and auth-dependency tokens are written with empty values; everyone keeps their own.
+  - Before pushing, the secret scan checks what is about to be shared and warns about plain-text credentials.
+- **Open tabs:** tabs follow the team's version unless they have unsaved edits.
+- **History:** recent commits are shown, and every sync is recorded in the audit log.
+
+Git must be installed (it usually is on macOS; on Windows, install it from git-scm.com). The repository holds readable JSON, so changes can also be reviewed in pull requests:
+
+```
+httpdash.json
+collections/orders-api/_collection.json        collection settings and variables
+collections/orders-api/orders/_folder.json
+collections/orders-api/orders/list-orders.request.json
+environments/staging.json
+```
+
+| | |
+| --- | --- |
+| ![Team repository](docs/screenshots/30-team-repo.png) Connecting a repository | ![Conflict](docs/screenshots/32-team-conflict.png) Choosing whose version to keep |
+
 ## Command-line runner (CI and schedulers)
 
 Run collections without opening the app, like Postman's Newman. The runner needs Node.js 22+:
@@ -249,7 +282,7 @@ Some of these are set automatically if you don't set them (User-Agent, Accept, A
 
 ## Not included
 
-Compared with Postman, these are not implemented: WebSocket, gRPC, Socket.IO and MQTT requests; OAuth 2.0 authorization-code and implicit flows; NTLM, Hawk and Akamai auth; client certificates; mock servers, monitors, API documentation publishing, cloud sync and team workspaces; YAML OpenAPI import.
+Compared with Postman, these are not implemented: WebSocket, gRPC, Socket.IO and MQTT requests; OAuth 2.0 authorization-code and implicit flows; NTLM, Hawk and Akamai auth; client certificates; API documentation publishing and hosted cloud sync (team sharing works through git instead); YAML OpenAPI import.
 
 Scripts run in Node's `vm` module in the main process. That is not a security boundary, so only run collections whose scripts you trust (Postman has the same caveat).
 
@@ -274,6 +307,8 @@ src/core/      request engine (no Electron dependency, unit-tested)
   postman.js      Postman / OpenAPI import and export
   curl.js         cURL parser
   codegen.js      code snippet generators
+  repo-format.js  team repository file format
+  gitsync.js      team sync through git
 src/main/      Electron main process, IPC, persistence, preload bridge
 src/renderer/  UI (plain JS + CodeMirror 5)
 test/          node:test unit tests against a local echo server

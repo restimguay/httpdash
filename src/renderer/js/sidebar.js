@@ -18,6 +18,7 @@
       ['environments', 'globe', 'Environments'],
       ['history', 'history', 'History'],
       ['monitors', 'pulse', 'Monitors'],
+      ['team', 'users', 'Team'],
     ].map(([id, icon, label]) => h('button.side-nav-btn', {
       class: id === tab ? 'active' : '', type: 'button', title: label,
       onclick: () => { S.ws.ui.sidebarTab = id; HD.save(); HD.renderSidebar(); },
@@ -27,7 +28,15 @@
     if (tab === 'collections') renderCollections(panel);
     else if (tab === 'environments') renderEnvironments(panel);
     else if (tab === 'monitors') HD.renderMonitorsSidebar(panel);
+    else if (tab === 'team') HD.renderTeamSidebar(panel);
     else renderHistory(panel);
+  };
+
+  // Shows which items are shared through a team repository.
+  const teamBadge = (item) => {
+    if (!item.team) return null;
+    const repo = HD.teamRepos().find((r) => r.id === item.team);
+    return h('span.team-badge', { title: `Shared through "${repo ? repo.name : 'a team repository'}"` }, HD.icon('users'));
   };
 
   const toolbar = (onAdd, addTitle, extra) => {
@@ -98,6 +107,7 @@
       isContainer ? h('span.tree-caret', { class: open ? 'open' : '' }, HD.icon('chevron')) : h('span.tree-caret.empty'),
       node.type === 'request' ? h(`span.method-tag.${HD.methodClass(node.request.method)}`, node.request.method.slice(0, 6)) : HD.icon(node.type === 'collection' ? 'layers' : 'folder'),
       h('span.tree-name', node.name),
+      teamBadge(node),
       h('button.tree-more', { type: 'button', title: 'More actions', onclick: (e) => { e.stopPropagation(); HD.menu(e, nodeMenu(node, collection)); } }, HD.icon('dots')));
       tree.appendChild(row);
       if (isContainer && open) {
@@ -133,7 +143,7 @@
     };
     const remove = async () => {
       const what = node.type === 'request' ? 'request' : node.type;
-      if (!(await HD.confirm(`Delete ${what}`, `Delete "${node.name}"${node.type !== 'request' ? ' and everything in it' : ''}? This cannot be undone.`, { danger: true, okLabel: 'Delete' }))) return;
+      if (!(await HD.confirm(`Delete ${what}`, `Delete "${node.name}"${node.type !== 'request' ? ' and everything in it' : ''}?${collection && collection.team ? ' It is shared with your team: the next sync deletes it for everyone.' : ''} This cannot be undone.`, { danger: true, okLabel: 'Delete' }))) return;
       const ids = new Set([node.id]);
       HD.walk(node.items || [], (it) => ids.add(it.id));
       found.siblings.splice(found.siblings.indexOf(node), 1);
@@ -233,6 +243,7 @@
         onclick: (e) => { e.stopPropagation(); S.ws.activeEnvironmentId = isActive ? null : env.id; HD.save(); HD.renderSidebar(); HD.renderEnvSelect(); HD.refreshVarHighlights(); },
       }, isActive ? HD.icon('check') : null),
       h('span.tree-name', env.name),
+      teamBadge(env),
       h('span.muted.small', String(env.values.filter((v) => v.key).length)),
       h('button.tree-more', { type: 'button', onclick: (e) => { e.stopPropagation(); HD.menu(e, envMenu(env)); } }, HD.icon('dots'))));
     }
@@ -244,7 +255,7 @@
     return [
       { label: 'Edit', onClick: () => HD.openEnvironment(env.id) },
       { label: 'Set active', onClick: () => { S.ws.activeEnvironmentId = env.id; HD.save(); HD.renderSidebar(); HD.renderEnvSelect(); } },
-      { label: 'Duplicate', onClick: () => { const c = HD.clone(env); c.id = HD.uid(); c.name = `${env.name} Copy`; S.ws.environments.push(c); HD.save(); HD.renderSidebar(); HD.renderEnvSelect(); } },
+      { label: 'Duplicate', onClick: () => { const c = HD.clone(env); c.id = HD.uid(); delete c.team; c.name = `${env.name} Copy`; S.ws.environments.push(c); HD.save(); HD.renderSidebar(); HD.renderEnvSelect(); } },
       { label: 'Export', onClick: () => window.api.exportEnvironment(env) },
       { separator: true },
       { label: 'Delete', danger: true, onClick: async () => {

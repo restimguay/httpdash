@@ -85,6 +85,7 @@
     const ids = new Map();
     const reId = (n) => { const id = HD.uid(); ids.set(n.id, id); n.id = id; (n.items || []).forEach(reId); };
     reId(copy);
+    delete copy.team; // a copy of a shared collection starts unshared
     // Auth dependencies that point inside the copy follow it to the copied request.
     const remap = (n) => {
       const dep = n.type === 'request' ? n.request.dependency : n.dependency;
